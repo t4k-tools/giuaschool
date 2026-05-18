@@ -1,0 +1,46 @@
+# =============================================
+# MySQL 8.0 - Configurazione Produzione
+# Ottimizzata per VPS 2-4 GB RAM
+# =============================================
+
+[mysqld]
+# ─── InnoDB Buffer Pool ───
+# Circa 50-60% della RAM disponibile per MySQL
+innodb_buffer_pool_size = 256M
+innodb_buffer_pool_instances = 1
+innodb_log_file_size = 64M
+innodb_log_buffer_size = 16M
+
+# ─── Connessioni ───
+max_connections = 50
+wait_timeout = 300
+interactive_timeout = 300
+
+# ─── Query Cache (disabilitato in MySQL 8) ───
+# Usa invece OPcache lato PHP
+
+# ─── Performance ───
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT
+innodb_io_capacity = 200
+innodb_io_capacity_max = 400
+
+# ─── Tabelle temporanee ───
+tmp_table_size = 32M
+max_heap_table_size = 32M
+
+# ─── Charset ───
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# ─── Logging ───
+slow_query_log = 1
+slow_query_log_file = /var/lib/mysql/slow-query.log
+long_query_time = 2
+
+# ─── Sicurezza ───
+local_infile = 0
+skip-symbolic-links = 1
+
+[client]
+default-character-set = utf8mb4

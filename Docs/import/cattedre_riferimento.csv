@@ -1,0 +1,61 @@
+cattedra_id,classe_id,classe,corso,gruppo,sede,docente_username,docente_cognome,docente_nome,materia_id,materia,tipo,attiva
+36,4,5A,IP19,IP19,ACIIEF,casella.r,Casella,Rosa,24,Igiene,N,1
+8,4,5A,IP19,IP19,ACIIEF,denicolab,De  Nicola,Benedetta,16,spagnolo,N,1
+30,4,5A,IP19,IP19,ACIIEF,espositoa.r,Esposito Alaia,Rosalia,17,diritto tec,N,1
+38,4,5A,IP19,IP19,ACIIEF,gargiulio.a,Gargiulio,Anna,29,Psicologia,N,1
+32,4,5A,IP19,IP19,ACIIEF,granato.v,Granato,Vincenza,6,Italiano,N,1
+34,4,5A,IP19,IP19,ACIIEF,granato.v,Granato,Vincenza,7,Storia,N,1
+40,4,5A,IP19,IP19,ACIIEF,maione.s,Maione,Stefania,28,Mat. Alternativa,N,1
+3,4,5A,IP19,IP19,ACIIEF,a.mitrano,Mitrano,Alessio,9,Matematica,N,1
+42,4,5A,IP19,IP19,ACIIEF,olivieri.t,Olivieri,Teresa,21,Met.op,N,1
+44,4,5A,IP19,IP19,ACIIEF,petrone.s,Petrone,Stefano,10,Sc. motorie,N,1
+46,4,5A,IP19,IP19,ACIIEF,scarano.o,Scarano,Ottavia,8,Inglese,N,1
+60,15,5A,ITAF,ITAF,ACIIEF,asciole.l,Asciole,Luigi,27,Ec. Politica,N,1
+54,15,5A,ITAF,ITAF,ACIIEF,casillo.s,Casillo,Sebastiano,9,Matematica,N,1
+64,15,5A,ITAF,ITAF,ACIIEF,ciao.n.m,Ciao,Anna Nabilia Maria,18,diritto,N,1
+50,15,5A,ITAF,ITAF,ACIIEF,degennaro.v,De Gennaro,Vittoria,6,Italiano,N,1
+52,15,5A,ITAF,ITAF,ACIIEF,degennaro.v,De Gennaro,Vittoria,7,Storia,N,1
+58,15,5A,ITAF,ITAF,ACIIEF,manfellotti.m.g,Manfellotti,Maria Grazia,16,spagnolo,N,1
+56,15,5A,ITAF,ITAF,ACIIEF,panico.f.s,Panico,Francesco Saverio,10,Sc. motorie,N,1
+48,15,5A,ITAF,ITAF,ACIIEF,panico.g,Panico,Gennaro,19,Ec. aziendale,N,1
+62,15,5A,ITAF,ITAF,ACIIEF,roma.m.a,Romano Manno,Anna,28,Mat. Alternativa,N,1
+14,14,5A,SIA,SIA,ACIIEF,carilli.b,Carilli,Bianca,9,Matematica,N,1
+26,14,5A,SIA,SIA,ACIIEF,dipalma.a,Di Palma,Amalia,18,diritto,N,1
+20,14,5A,SIA,SIA,ACIIEF,granato.v,Granato,Vincenza,8,Inglese,N,1
+18,14,5A,SIA,SIA,ACIIEF,grimaldi.a,Grimaldi,Antonio,19,Ec. aziendale,N,1
+22,14,5A,SIA,SIA,ACIIEF,guida.s,Guida,Saverio,27,Ec. Politica,N,1
+16,14,5A,SIA,SIA,ACIIEF,mnzo.f,Manzo,Fabio,11,Informatica,N,1
+1,14,5A,SIA,SIA,ACIIEF,m.salvatore,Morgera,Salvatore,6,Italiano,N,1
+4,14,5A,SIA,SIA,ACIIEF,m.salvatore,Morgera,Salvatore,7,Storia,N,1
+24,14,5A,SIA,SIA,ACIIEF,pascale.a,Pascale,Antonio,10,Sc. motorie,N,1
+28,14,5A,SIA,SIA,ACIIEF,roma.m.a,Romano Manno,Anna,28,Mat. Alternativa,N,1
+37,16,5B,IP19,IP19,ACIIEF SER,casella.r,Casella,Rosa,24,Igiene,N,1
+9,16,5B,IP19,IP19,ACIIEF SER,denicolab,De  Nicola,Benedetta,16,spagnolo,N,1
+31,16,5B,IP19,IP19,ACIIEF SER,espositoa.r,Esposito Alaia,Rosalia,17,diritto tec,N,1
+39,16,5B,IP19,IP19,ACIIEF SER,gargiulio.a,Gargiulio,Anna,29,Psicologia,N,1
+33,16,5B,IP19,IP19,ACIIEF SER,granato.v,Granato,Vincenza,6,Italiano,N,1
+35,16,5B,IP19,IP19,ACIIEF SER,granato.v,Granato,Vincenza,7,Storia,N,1
+41,16,5B,IP19,IP19,ACIIEF SER,maione.s,Maione,Stefania,28,Mat. Alternativa,N,1
+7,16,5B,IP19,IP19,ACIIEF SER,a.mitrano,Mitrano,Alessio,9,Matematica,N,1
+43,16,5B,IP19,IP19,ACIIEF SER,olivieri.t,Olivieri,Teresa,21,Met.op,N,1
+45,16,5B,IP19,IP19,ACIIEF SER,petrone.s,Petrone,Stefano,10,Sc. motorie,N,1
+47,16,5B,IP19,IP19,ACIIEF SER,scarano.o,Scarano,Ottavia,8,Inglese,N,1
+61,18,5B,ITAF,ITAF,ACIIEF SER,asciole.l,Asciole,Luigi,27,Ec. Politica,N,1
+55,18,5B,ITAF,ITAF,ACIIEF SER,casillo.s,Casillo,Sebastiano,9,Matematica,N,1
+65,18,5B,ITAF,ITAF,ACIIEF SER,ciao.n.m,Ciao,Anna Nabilia Maria,18,diritto,N,1
+51,18,5B,ITAF,ITAF,ACIIEF SER,degennaro.v,De Gennaro,Vittoria,6,Italiano,N,1
+53,18,5B,ITAF,ITAF,ACIIEF SER,degennaro.v,De Gennaro,Vittoria,7,Storia,N,1
+59,18,5B,ITAF,ITAF,ACIIEF SER,manfellotti.m.g,Manfellotti,Maria Grazia,16,spagnolo,N,1
+57,18,5B,ITAF,ITAF,ACIIEF SER,panico.f.s,Panico,Francesco Saverio,10,Sc. motorie,N,1
+49,18,5B,ITAF,ITAF,ACIIEF SER,panico.g,Panico,Gennaro,19,Ec. aziendale,N,1
+63,18,5B,ITAF,ITAF,ACIIEF SER,roma.m.a,Romano Manno,Anna,28,Mat. Alternativa,N,1
+15,17,5B,SIA,SIA,ACIIEF SER,carilli.b,Carilli,Bianca,9,Matematica,N,1
+27,17,5B,SIA,SIA,ACIIEF SER,dipalma.a,Di Palma,Amalia,18,diritto,N,1
+21,17,5B,SIA,SIA,ACIIEF SER,granato.v,Granato,Vincenza,8,Inglese,N,1
+19,17,5B,SIA,SIA,ACIIEF SER,grimaldi.a,Grimaldi,Antonio,19,Ec. aziendale,N,1
+23,17,5B,SIA,SIA,ACIIEF SER,guida.s,Guida,Saverio,27,Ec. Politica,N,1
+17,17,5B,SIA,SIA,ACIIEF SER,mnzo.f,Manzo,Fabio,11,Informatica,N,1
+5,17,5B,SIA,SIA,ACIIEF SER,m.salvatore,Morgera,Salvatore,6,Italiano,N,1
+6,17,5B,SIA,SIA,ACIIEF SER,m.salvatore,Morgera,Salvatore,7,Storia,N,1
+25,17,5B,SIA,SIA,ACIIEF SER,pascale.a,Pascale,Antonio,10,Sc. motorie,N,1
+29,17,5B,SIA,SIA,ACIIEF SER,roma.m.a,Romano Manno,Anna,28,Mat. Alternativa,N,1

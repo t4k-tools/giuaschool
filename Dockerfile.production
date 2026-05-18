@@ -1,0 +1,105 @@
+# =============================================
+# Symfony PHP 8.2 - Build di produzione
+# =============================================
+
+FROM php:8.2-apache AS app-base
+
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+
+# Abilita mod_rewrite e mod_headers
+RUN a2enmod rewrite headers \
+    && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
+    && a2enconf servername
+
+# Dipendenze di sistema e runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    openssl \
+    unzip \
+    libicu-dev \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libxml2-dev \
+    libonig-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Estensioni PHP
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" \
+    pdo_mysql \
+    intl \
+    zip \
+    gd \
+    opcache \
+    mbstring \
+    xml
+
+# Configurazione PHP produzione
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
+
+# OPcache ottimizzato per produzione
+RUN printf '%s\n' \
+    'opcache.enable=1' \
+    'opcache.memory_consumption=256' \
+    'opcache.interned_strings_buffer=16' \
+    'opcache.max_accelerated_files=20000' \
+    'opcache.validate_timestamps=0' \
+    'opcache.save_comments=1' \
+    'opcache.enable_cli=1' \
+    'realpath_cache_size=4096K' \
+    'realpath_cache_ttl=600' \
+    > /usr/local/etc/php/conf.d/opcache-prod.ini
+
+# Apache: install an explicit vhost and align DocumentRoot to public/
+COPY src/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
+    && sed -ri -e 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
+
+# Security headers in Apache
+RUN printf '%s\n' \
+    '<IfModule mod_headers.c>' \
+    '    Header always set X-Content-Type-Options "nosniff"' \
+    '    Header always set X-Frame-Options "SAMEORIGIN"' \
+    '    Header always set X-XSS-Protection "1; mode=block"' \
+    '    Header always set Referrer-Policy "strict-origin-when-cross-origin"' \
+    '</IfModule>' \
+    > /etc/apache2/conf-available/security-headers.conf \
+    && a2enconf security-headers
+
+WORKDIR /var/www/html
+
+FROM app-base AS vendor
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY src/composer.json src/composer.lock src/symfony.lock ./
+
+RUN composer install \
+    --no-dev \
+    --prefer-dist \
+    --classmap-authoritative \
+    --no-interaction \
+    --no-scripts
+
+FROM app-base AS runtime
+
+WORKDIR /var/www/html
+
+COPY src/ /var/www/html/
+COPY --from=vendor /var/www/html/vendor /var/www/html/vendor
+COPY docker/app-entrypoint.sh /usr/local/bin/app-entrypoint
+
+RUN chmod +x /usr/local/bin/app-entrypoint \
+    && mkdir -p /var/www/html/FILES /var/www/html/config/jwt /var/www/html/var/cache /var/www/html/var/log /var/www/html/var/sessions \
+    && chown -R www-data:www-data /var/www/html/FILES /var/www/html/config/jwt /var/www/html/var
+
+EXPOSE 80
+
+ENTRYPOINT ["app-entrypoint"]
+CMD ["apache2-foreground"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl -fsS http://127.0.0.1/api/public/info >/dev/null || exit 1

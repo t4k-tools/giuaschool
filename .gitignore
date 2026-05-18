@@ -1,6 +1,9 @@
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
+# Le chiavi JWT vanno generate localmente con `lexik:jwt:generate-keypair`,
+# mai committate. Ignoro l'intera cartella per evitare commit accidentali.
+/config/jwt/
 
 # --- base upstream giuaschool ---
 /.vscode/
@@ -72,7 +75,7 @@ Thumbs.db
 # File pericolosi mai in repo
 /public/phpinfo.php
 
-# Frontend Next.js (separato — sarà importato in commit successivo)
+# Frontend Next.js — deps e build
 /refactor/node_modules/
 /refactor/.next/
 /refactor/.env.local
@@ -81,3 +84,20 @@ Thumbs.db
 
 # Override produzione locale Docker
 /docker/backend.env.local
+
+# Cloudflare Tunnel credentials (file UUID.json + config.yml)
+/config.yml
+/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.json
+
+# Backup DB dentro Docs
+/Docs/*.sql
+
+# Backup compose locali
+/docker-compose.yml.backup
+/docker-compose.*.local.yml
+
+# Env produzione
+/.env.production
+
+# Binary artifacts (apk export)
+*.apk

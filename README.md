@@ -1,23 +1,73 @@
-# giua@school ![GitHub release (latest by date)](https://img.shields.io/github/v/release/iisgiua/giuaschool)
+# Giua@school - Registro Elettronico
 
-*Il Registro Elettronico open source dell'Istituto di Istruzione Superiore "Michele Giua"*
+Registro elettronico open source per istituti scolastici italiani, conforme alla normativa vigente.
 
-[![Test and deploy](https://github.com/iisgiua/giuaschool/actions/workflows/test-deploy.yml/badge.svg?branch=master)](https://github.com/iisgiua/giuaschool/actions/workflows/test-deploy.yml)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/fe9a2c70a8d84667a114fff45e942260)](https://www.codacy.com/gh/iisgiua/giuaschool/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=iisgiua/giuaschool&amp;utm_campaign=Badge_Grade)
-[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/fe9a2c70a8d84667a114fff45e942260)](https://www.codacy.com/gh/iisgiua/giuaschool/dashboard?utm_source=github.com&utm_medium=referral&utm_content=iisgiua/giuaschool&utm_campaign=Badge_Coverage)
+## Architettura
 
----
+Il progetto è composto da due parti:
 
-- [Visualizza la documentazione](https://iisgiua.github.io/giuaschool-docs/)
+- **Backend** (`src/`) — Symfony 6.4, PHP, MySQL. Gestisce autenticazione, API REST, logica di business, persistenza dati.
+- **Frontend** (`refactor/`) — Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui. Interfaccia moderna con 45+ route.
 
-- [Scarica l'ultima versione](https://iisgiua.github.io/giuaschool-docs/latest-release.html)
+## Struttura del progetto
 
-- [Visualizza le modifiche successive al rilascio della versione](https://iisgiua.github.io/giuaschool-docs/latest-build.html)
+```
+├── src/                         # Backend Symfony
+│   ├── src/Controller/          # Controller API e web
+│   ├── src/Entity/              # Entità Doctrine (ORM)
+│   ├── src/Repository/          # Repository per accesso ai dati
+│   ├── src/Security/            # Autenticazione e autorizzazione
+│   ├── config/                  # Configurazione Symfony
+│   ├── templates/               # Template Twig (legacy)
+│   └── public/                  # Entry point PHP
+├── refactor/                    # Frontend Next.js
+│   └── src/
+│       ├── app/(app)/           # Route autenticate (dashboard, alunni, docenti, ...)
+│       ├── app/(auth)/          # Route autenticazione (login)
+│       ├── components/          # Componenti React riutilizzabili
+│       └── lib/                 # Utility, API client, tipi
+├── docker/                      # Configurazioni PHP e MySQL
+├── Docs/                        # Documentazione e guide di deploy
+├── Dockerfile*                  # Immagini Docker (backend, frontend, produzione)
+├── docker-compose.yml           # Ambiente di sviluppo locale
+└── docker-compose.production.yml # Ambiente di produzione con Traefik
+```
 
-- [Visualizza gli annunci](https://github.com/iisgiua/giuaschool/discussions/categories/annunci)
+## Requisiti
 
-- [Segnala un errore](https://github.com/iisgiua/giuaschool/issues/new?assignees=&labels=Errore&template=bug-report.md&title=)
+- Docker e Docker Compose
+- Node.js 20+ (per sviluppo frontend)
+- PHP 8.2+ e Composer (per sviluppo backend)
 
-- [Chiedi aiuto agli utenti che seguono il progetto](https://github.com/iisgiua/giuaschool/discussions/new?category=richieste-di-aiuto)
+## Avvio rapido (Docker)
 
-- [Proponi nuove funzionalità o miglioramenti per l'applicazione](https://github.com/iisgiua/giuaschool/discussions/new?category=idee-e-proposte)
+```bash
+# Sviluppo locale
+docker compose up -d
+
+# Produzione (con Traefik reverse proxy)
+docker compose -f docker-compose.production.yml up -d
+```
+
+## Ruoli utente
+
+- **Amministratore** — Gestione completa del sistema
+- **Dirigente scolastico** — Supervisione e approvazione
+- **Segreteria** — Gestione alunni, docenti, ATA, classi, orari
+- **Docente** — Registro di classe, voti, assenze, annotazioni
+- **Genitore** — Consultazione voti, assenze, comunicazioni
+- **Alunno** — Consultazione propri dati
+
+## Documentazione
+
+La guida al deploy è disponibile in `Docs/DEPLOY-GUIDA.md`.
+
+Per la migrazione `legacy -> refactor` vedi:
+
+- `Docs/INDEX_REFACTOR.md`
+- `Docs/MATRICE_MIGRAZIONE_LEGACY_REFACTOR.md`
+- `Docs/ROADMAP_ESECUTIVA_REFACTOR.md`
+
+## Licenza
+
+AGPL-3.0 — [Giua@school](https://github.com/iisgiua/giuaschool)

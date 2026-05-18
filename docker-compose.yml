@@ -1,0 +1,76 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: registro_app
+    ports:
+      - "${REGISTRO_BACKEND_PORT:-8082}:80"
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - APP_ENV=dev
+      - APP_DEBUG=1
+      - DATABASE_URL=mysql://giuaschool:giuaschool@db:3306/giuaschool
+      - CORS_ALLOW_ORIGIN=${REGISTRO_CORS_ALLOW_ORIGIN:-^https?://(localhost|127\.0\.0\.1|10\.10\.40\.135)(:[0-9]+)?$}
+    command: >
+      bash -c "
+        if [ -f /var/www/html/composer.json ] && [ ! -f /var/www/html/vendor/autoload.php ]; then
+          echo '>>> composer install...' &&
+          composer install --no-interaction --prefer-dist --working-dir=/var/www/html;
+        fi &&
+        exec apache2-foreground
+      "
+
+  frontend:
+    image: node:20-alpine
+    container_name: registro_frontend
+    working_dir: /app
+    ports:
+      - "${REGISTRO_FRONTEND_PORT:-3001}:3000"
+    volumes:
+      - ./refactor:/app
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0"
+    environment:
+      - BACKEND_URL=http://app:80
+      - NEXT_PUBLIC_LEGACY_URL=${REGISTRO_LEGACY_URL:-http://10.10.40.135:8082}
+    depends_on:
+      - app
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: registro_cloudflared
+    # Il config.yml dice a cloudflared di girare il traffico verso http://frontend:3000
+    # (nome servizio Docker — funziona su macOS, Linux e qualsiasi host)
+    command: tunnel --config /home/nonroot/.cloudflared/config.yml run
+    volumes:
+      - ./docker/cloudflared/config.yml:/home/nonroot/.cloudflared/config.yml:ro
+      - ./008cc3aa-3295-4930-beb7-0be17f85e707.json:/home/nonroot/.cloudflared/008cc3aa-3295-4930-beb7-0be17f85e707.json:ro
+    depends_on:
+      - frontend
+
+  db:
+    image: mysql:8.0
+    container_name: registro_db
+    ports:
+      - "${REGISTRO_DB_PORT:-3308}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: giuaschool
+      MYSQL_USER: giuaschool
+      MYSQL_PASSWORD: giuaschool
+    volumes:
+      - registro_db_data:/var/lib/mysql
+      - ./src/src/Install/create-db.sql:/docker-entrypoint-initdb.d/10-create-db.sql:ro
+      - ./src/src/Install/init-db.sql:/docker-entrypoint-initdb.d/20-init-db.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  registro_db_data:

@@ -1,0 +1,231 @@
+# =============================================
+# giua@school - Registro Elettronico
+# Docker Compose PRODUZIONE con Traefik
+# =============================================
+#
+# Uso:
+#   1. Copia .env.production.example → .env
+#   2. Copia docker/backend.env.local.example → docker/backend.env.local
+#   3. Configura dominio, email, password DB e passphrase JWT
+#   4. docker compose -f docker-compose.production.yml up -d --build
+#
+# Architettura:
+#   [Internet] → :443 → [Traefik] → Host(DOMAIN)         → [frontend:3000] (Next.js)
+#                                  → Host(DOMAIN)/api/*  → [app:80]         (Symfony API)
+#                                  → Host(LEGACY_DOMAIN) → [app:80]         (Symfony legacy)
+#   [Worker] consuma le code Messenger dal DB
+#   [MySQL :3306] ← solo rete interna, non esposto
+#
+# =============================================
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: registro_traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=registro_web
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --log.level=WARN
+      - --accesslog=true
+      - --accesslog.filepath=/var/log/traefik/access.log
+      - --accesslog.bufferingsize=100
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+      - traefik_logs:/var/log/traefik
+    networks:
+      - web
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=registro_web
+      - traefik.http.routers.dashboard.rule=Host(`${DOMAIN}`) && (PathPrefix(`/traefik`) || PathPrefix(`/api/traefik`))
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.priority=200
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=dashboard-auth
+      - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}
+      - traefik.http.middlewares.security-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.security-headers.headers.stsPreload=true
+      - traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.security-headers.headers.frameDeny=true
+      - traefik.http.middlewares.security-headers.headers.browserXssFilter=true
+      - traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: registro_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: 0
+      APP_SECRET: ${APP_SECRET}
+      DATABASE_URL: mysql://${DB_USER}:${DB_PASSWORD}@db:3306/${DB_NAME}?serverVersion=8.0&charset=utf8mb4
+      MESSENGER_TRANSPORT_DSN: doctrine://default
+      JWT_SECRET_KEY: /var/www/html/config/jwt/private.pem
+      JWT_PUBLIC_KEY: /var/www/html/config/jwt/public.pem
+      JWT_PASSPHRASE: ${JWT_PASSPHRASE}
+      TRUSTED_PROXIES: REMOTE_ADDR
+    volumes:
+      - jwt_keys:/var/www/html/config/jwt
+      - symfony_files:/var/www/html/FILES
+      - symfony_sessions:/var/www/html/var/sessions
+      - symfony_logs:/var/www/html/var/log
+      - ./docker/backend.env.local:/var/www/html/.env.local
+    networks:
+      - web
+      - backend
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=registro_web
+      - traefik.http.routers.api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.priority=100
+      - traefik.http.routers.api.tls.certresolver=letsencrypt
+      - traefik.http.routers.api.middlewares=security-headers
+      - traefik.http.routers.api.service=app-svc
+      - traefik.http.routers.legacy.rule=Host(`${LEGACY_DOMAIN}`)
+      - traefik.http.routers.legacy.entrypoints=websecure
+      - traefik.http.routers.legacy.priority=90
+      - traefik.http.routers.legacy.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy.middlewares=security-headers
+      - traefik.http.routers.legacy.service=app-svc
+      - traefik.http.services.app-svc.loadbalancer.server.port=80
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: registro_worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: 0
+      APP_SECRET: ${APP_SECRET}
+      DATABASE_URL: mysql://${DB_USER}:${DB_PASSWORD}@db:3306/${DB_NAME}?serverVersion=8.0&charset=utf8mb4
+      MESSENGER_TRANSPORT_DSN: doctrine://default
+      JWT_SECRET_KEY: /var/www/html/config/jwt/private.pem
+      JWT_PUBLIC_KEY: /var/www/html/config/jwt/public.pem
+      JWT_PASSPHRASE: ${JWT_PASSPHRASE}
+      TRUSTED_PROXIES: REMOTE_ADDR
+      SKIP_CACHE_WARMUP: 1
+    command:
+      - php
+      - bin/console
+      - messenger:consume
+      - notifica
+      - avviso
+      - evento
+      - circolare
+      - --time-limit=3600
+      - --memory-limit=256M
+      - --no-reset
+    stop_grace_period: 20s
+    volumes:
+      - jwt_keys:/var/www/html/config/jwt
+      - symfony_files:/var/www/html/FILES
+      - symfony_logs:/var/www/html/var/log
+      - ./docker/backend.env.local:/var/www/html/.env.local
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}
+        NEXT_PUBLIC_LEGACY_URL: https://${LEGACY_DOMAIN}
+    container_name: registro_frontend
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - web
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=registro_web
+      - traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.routers.frontend.priority=10
+      - traefik.http.routers.frontend.tls.certresolver=letsencrypt
+      - traefik.http.routers.frontend.middlewares=security-headers
+      - traefik.http.routers.frontend.service=frontend-svc
+      - traefik.http.services.frontend-svc.loadbalancer.server.port=3000
+
+  db:
+    image: mysql:8.0
+    container_name: registro_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      AUTO_INIT_DB: ${AUTO_INIT_DB:-1}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql-prod.cnf:/etc/mysql/conf.d/custom.cnf:ro
+      - ./docker/mysql-init.sh:/docker-entrypoint-initdb.d/10-bootstrap.sh:ro
+      - ./src/src/Install/create-db.sql:/docker-init/create-db.sql:ro
+      - ./src/src/Install/init-db.sql:/docker-init/init-db.sql:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+networks:
+  web:
+    name: registro_web
+    driver: bridge
+  backend:
+    name: registro_backend
+    driver: bridge
+    internal: true
+
+volumes:
+  db_data:
+    name: registro_db_data
+  jwt_keys:
+    name: registro_jwt_keys
+  symfony_files:
+    name: registro_symfony_files
+  symfony_sessions:
+    name: registro_symfony_sessions
+  symfony_logs:
+    name: registro_symfony_logs
+  traefik_letsencrypt:
+    name: registro_letsencrypt
+  traefik_logs:
+    name: registro_traefik_logs

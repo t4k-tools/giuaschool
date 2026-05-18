@@ -1,3 +1,8 @@
+###> lexik/jwt-authentication-bundle ###
+/config/jwt/*.pem
+###< lexik/jwt-authentication-bundle ###
+
+# --- base upstream giuaschool ---
 /.vscode/
 /config/metadata/*
 !/config/metadata/.gitkeep
@@ -51,3 +56,28 @@
 /.env.local
 /.env.local.php
 /last_deploy.date
+
+# --- aggiunte fork t4k-tools ---
+
+# Sistema/IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# Claude Code (config locale worktree)
+.claude/
+
+# File pericolosi mai in repo
+/public/phpinfo.php
+
+# Frontend Next.js (separato — sarà importato in commit successivo)
+/refactor/node_modules/
+/refactor/.next/
+/refactor/.env.local
+/refactor/giua-registro/
+/refactor/giuaschool/
+
+# Override produzione locale Docker
+/docker/backend.env.local

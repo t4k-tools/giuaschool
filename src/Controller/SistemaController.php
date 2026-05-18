@@ -8,35 +8,36 @@
 
 namespace App\Controller;
 
-use App\Entity\Alunno;
-use App\Entity\Avviso;
-use App\Entity\AvvisoUtente;
-use App\Entity\CambioClasse;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Entity\Configurazione;
+use DateTime;
+use App\Entity\Utente;
+use App\Entity\Classe;
+use Doctrine\DBAL\ArrayParameterType;
+use App\Entity\Esito;
+use App\Entity\StoricoEsito;
+use App\Entity\Materia;
 use App\Entity\Cattedra;
+use App\Entity\VotoScrutinio;
+use App\Entity\CambioClasse;
 use App\Entity\Circolare;
 use App\Entity\CircolareUtente;
-use App\Entity\Classe;
-use App\Entity\Configurazione;
+use App\Entity\Avviso;
+use App\Entity\AvvisoUtente;
+use App\Entity\Preside;
+use App\Entity\Documento;
+use Exception;
+use App\Entity\Alunno;
 use App\Entity\DefinizioneScrutinio;
 use App\Entity\Docente;
-use App\Entity\Documento;
-use App\Entity\Esito;
-use App\Entity\Materia;
-use App\Entity\Preside;
 use App\Entity\Provisioning;
 use App\Entity\Scrutinio;
-use App\Entity\StoricoEsito;
-use App\Entity\Utente;
-use App\Entity\VotoScrutinio;
 use App\Form\ConfigurazioneType;
 use App\Form\ModuloType;
 use App\Form\UtenteType;
 use App\Util\ArchiviazioneUtil;
 use App\Util\LogHandler;
 use App\Util\TelegramManager;
-use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
-use Exception;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -51,7 +52,6 @@ use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -610,7 +610,7 @@ class SistemaController extends BaseController {
               ->join('c.docente', 'd')
               ->join('c.materia', 'm')
               ->join('c.classe', 'cl')
-              ->where("d.abilitato=1 AND c.attiva=1 AND c.tipo!='P' AND cl.anno=:anno AND cl.sezione=:sezione AND (cl.gruppo=:gruppo OR cl.gruppo='' OR cl.gruppo IS NULL)")
+              ->where("c.attiva=1 AND c.tipo!='P' AND cl.anno=:anno AND cl.sezione=:sezione AND (cl.gruppo=:gruppo OR cl.gruppo='' OR cl.gruppo IS NULL)")
               ->orderBy('d.cognome,d.nome,m.ordinamento', 'ASC')
               ->setParameter('anno', $scrutinio->getClasse()->getAnno())
               ->setParameter('sezione', $scrutinio->getClasse()->getSezione())
@@ -1492,7 +1492,7 @@ class SistemaController extends BaseController {
     // imposta nuovo livello di log
     $logLevel = ($request->server->get('LOG_LEVEL') == 'warning') ? 'debug' : 'warning';
     // legge .env
-    $envPath = $this->getParameter('kernel.project_dir').'/.env';
+    $envPath = $this->getRuntimeEnvPath();
     $envData = file($envPath);
     // modifica impostazione
     foreach ($envData as $row=>$text) {
@@ -1691,7 +1691,7 @@ class SistemaController extends BaseController {
       $this->reqstack->getSession()->set('/APP/ROUTE/sistema_email/invio', '');
     }
     // legge .env
-    $envPath = $this->getParameter('kernel.project_dir').'/.env';
+    $envPath = $this->getRuntimeEnvPath();
     $envData = parse_ini_file($envPath);
     // estrae configurazione
     $dsn = parse_url($envData['MAILER_DSN'] ?? '');
@@ -1809,6 +1809,14 @@ class SistemaController extends BaseController {
   }
 
   /**
+   * Restituisce il file env runtime da usare per le configurazioni modificate dal pannello.
+   */
+  private function getRuntimeEnvPath(): string {
+    $envLocalPath = $this->getParameter('kernel.project_dir').'/.env.local';
+    return file_exists($envLocalPath) ? $envLocalPath : $this->getParameter('kernel.project_dir').'/.env';
+  }
+
+  /**
    * Configura per l'invio delle notifiche via Telegram.
    *
    * @param Request $request Pagina richiesta
@@ -1870,79 +1878,6 @@ class SistemaController extends BaseController {
     // mostra la pagina di risposta
     return $this->renderHtml('sistema', 'telegram', $dati, $info, [$form->createView(),
       'message.sistema_telegram']);
-  }
-
-  /**
-   * Imposta la configurazione per SPID/CIE
-   *
-   * @param Request $request Pagina richiesta
-   * @param TranslatorInterface $trans Gestore delle traduzioni
-   * @param KernelInterface $kernel Gestore delle funzionalità http del kernel
-   *
-   * @return Response Pagina di risposta
-   */
-  #[Route(path: '/sistema/spid', name: 'sistema_spid', methods: ['GET', 'POST'])]
-  #[IsGranted('ROLE_AMMINISTRATORE')]
-  public function spid(Request $request, TranslatorInterface $trans, KernelInterface $kernel): Response {
-    // inizializza
-    $dati = [];
-    $info = [];
-    // legge .env
-    $envPath = $this->getParameter('kernel.project_dir').'/.env';
-    $envData = parse_ini_file($envPath);
-    // estrae configurazione
-    $info['abilitato'] = $this->em->getRepository(Configurazione::class)->getParametro('spid');
-    $info['client'] = $envData['MIMSPID_CLIENT_ID'] ?? '';
-    $info['secret'] = $envData['MIMSPID_CLIENT_SECRET'] ?? '';
-    // form
-    $form = $this->createForm(ModuloType::class, null, ['form_mode' => 'spid', 'values' => [
-      $info['abilitato'], $info['client'], $info['secret']]]);
-    $form->handleRequest($request);
-    if ($form->isSubmitted() && $form->isValid()) {
-      // legge dati form
-      $abilitato = $form->get('abilitato')->getData();
-      $client = $form->get('client')->getData();
-      $secret = $form->get('secret')->getData();
-      // controlli
-      if ($abilitato != 'no' && (empty($client) || empty($secret))) {
-        // errore        $form->addError(new FormError($trans->trans('exception.spid_no_client_secret')));
-        $form->addError(new FormError($trans->trans('exception.spid_no_client_secret')));
-      }
-      if ($form->isValid()) {
-        // memorizza dati
-        $this->em->getRepository(Configurazione::class)->setParametro('spid', $abilitato);
-        // legge .env
-        $envData = file($envPath);
-        // modifica impostazioni
-        foreach ($envData as $row => $text) {
-          if (preg_match('/^\s*MIMSPID_CLIENT_ID\s*=/', $text)) {
-            // modifica valore
-            $envData[$row] = "MIMSPID_CLIENT_ID='".$client."'\n";
-          } elseif (preg_match('/^\s*MIMSPID_CLIENT_SECRET\s*=/', $text)) {
-            // modifica valore
-            $envData[$row] = "MIMSPID_CLIENT_SECRET='".$secret."'\n";
-          }
-        }
-        // scrive nuovo .env
-        unlink($envPath);
-        file_put_contents($envPath, $envData);
-        // cancella cache e ricarica .env
-        $command = new ArrayInput(['command' => 'cache:clear', '--no-warmup' => true, '-n' => true, '-q' => true]);
-        // esegue comando
-        $application = new Application($kernel);
-        $application->setAutoExit(false);
-        $output = new BufferedOutput();
-        $status = $application->run($command, $output);
-        if ($status != 0) {
-          // errore nell'esecuzione del comando
-          $form->addError(new FormError($trans->trans('exception.spid_svuota_cache',
-            ['errore' => $output->fetch()])));
-        }
-      }
-    }
-    // mostra la pagina di risposta
-    return $this->renderHtml('sistema', 'spid', $dati, $info, [$form->createView(),
-      'message.sistema_spid']);
   }
 
 }

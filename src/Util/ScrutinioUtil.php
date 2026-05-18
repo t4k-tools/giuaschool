@@ -290,10 +290,6 @@ class ScrutinioUtil {
         ->setParameters(new ArrayCollection($param))
         ->getQuery()
         ->getOneOrNullResult();
-      if (!$scrutiniX) {
-        // non esiste lo scrutinio rimandato dall'anno precedente
-        return $elenco;
-      }
       foreach ($scrutiniX->getDato('alunni') as $id) {
         if ($scrutiniX->getDato('voti')[$id][$materia->getId()]['unico'] < 6) {
           $voto = (new VotoScrutinio())
@@ -2162,6 +2158,7 @@ class ScrutinioUtil {
       ->join(Esito::class, 'e', 'WITH', 'e.alunno=a.id')
       ->join('e.scrutinio', 's')
       ->where('a.id IN (:lista) AND e.esito=:esito AND s.classe=:classe AND s.periodo=:periodo')
+      ->orderBy('a.cognome,a.nome,a.dataNascita', 'ASC')
 			->setParameter('lista', $lista)
 			->setParameter('esito', 'A')
 			->setParameter('classe', $classe)
@@ -4529,7 +4526,8 @@ class ScrutinioUtil {
       ->getOneOrNullResult();
     $dati['scrutinio'] = $scrutinio;
     // legge materie
-    $listaMaterie = $scrutinio->getDato('materie');
+    $listaMaterie = array_unique(array_merge([], ...
+      array_map(fn($m) => array_keys($m), $scrutinio->getDato('docenti'))));
     $materie = $this->em->getRepository(Materia::class)->createQueryBuilder('m')
       ->select('m.id,m.nome,m.nomeBreve,m.tipo,m.ordinamento')
       ->where("m.id IN (:lista) AND m.tipo!='S'")
@@ -4550,7 +4548,7 @@ class ScrutinioUtil {
     $voti = $this->em->getRepository(VotoScrutinio::class)->createQueryBuilder('vs')
       ->join('vs.materia', 'm')
       ->where('vs.scrutinio=:scrutinio AND vs.alunno=:alunno'.
-        ($tutti ? '' : ' AND vs.recupero IS NOT NULL'))
+        ($tutti ? '' : ' AND vs.debito IS NOT NULL'))
       ->orderBy('m.ordinamento', 'ASC')
 			->setParameter('scrutinio', $scrutinio)
 			->setParameter('alunno', $alunno)

@@ -49,7 +49,7 @@ trait AuthenticatorTrait {
   }
 
   /**
-   * Controlla i profili attivi per l'utente e restituisce il primo con eventuale lista di altri profili.
+   * Controlla controlla i profili attivi per l'utente e restituisce il primo con eventuale lista di altri profili.
    *
    * @param UserInterface $user Utente che sta effettuando l'autenticazione
    *

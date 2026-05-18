@@ -23,16 +23,16 @@ class UtenteCreatoEvent {
   /**
    * Costruttore
    *
-   * @param Utente $utente Nuovo utente creato
+   * @param Utente $utente Nuovo utente creato e reso persistente
    */
   public function __construct(
       private Utente $utente) {
   }
 
   /**
-   * Restituisce il nuovo utente
+   * Costruttore
    *
-   * @return Utente Utente creato
+   * @return Utente Restituisce il nuovo utente
    */
   public function getUtente(): Utente {
     return $this->utente;

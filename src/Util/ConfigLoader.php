@@ -74,6 +74,24 @@ class ConfigLoader {
 }
 
   /**
+   * Variante leggera di carica() per le richieste API stateless.
+   *
+   * Popola solo /CONFIG/SISTEMA/*, /CONFIG/SCUOLA/*, /CONFIG/ACCESSO/* e
+   * /CONFIG/ISTITUTO/*, che sono le chiavi lette dai Util legacy
+   * (RegistroUtil, ScrutinioUtil, ecc.). Salta menu, tema e dati utente
+   * che servono solo al rendering dell'interfaccia legacy Twig.
+   */
+  public function caricaApi(): void {
+    // Configurazione (/CONFIG/SISTEMA/*, /CONFIG/SCUOLA/*, /CONFIG/ACCESSO/*)
+    $list = $this->em->getRepository(Configurazione::class)->load();
+    foreach ($list as $item) {
+      $this->reqstack->getSession()->set('/CONFIG/'.$item['categoria'].'/'.$item['parametro'], $item['valore']);
+    }
+    // Istituto e sedi (/CONFIG/ISTITUTO/*)
+    $this->caricaIstituto();
+  }
+
+  /**
    * Carica la configurazione dall'entità Istituto
    */
   private function caricaIstituto() {

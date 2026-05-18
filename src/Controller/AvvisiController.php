@@ -847,10 +847,10 @@ class AvvisiController extends BaseController {
    *
    * @return JsonResponse Informazioni di risposta
    */
-  #[Route(path: '/avvisi/legge/{avviso}', name: 'avvisi_legge', requirements: ['avviso' => '\d+'], defaults: ['avviso' => '0'], methods: ['GET'])]
+  #[Route(path: '/avvisi/legge/{avviso}', name: 'avvisi_legge', requirements: ['avviso' => '\d+'], methods: ['GET'])]
   #[IsGranted('ROLE_UTENTE')]
   public function legge(
-                        #[MapEntity] ?Avviso $avviso=null
+                        #[MapEntity] Avviso $avviso
                         ): JsonResponse {
     // firma
     $this->em->getRepository(ComunicazioneUtente::class)->legge($avviso, $this->getUser());
@@ -1126,21 +1126,7 @@ class AvvisiController extends BaseController {
       // imposta dati
       $avviso->setAlunni($avviso->getGenitori());
       if ($avviso->getGenitori() == 'C') {
-        if ($avviso->getCattedra()) {
-          // gestisce classi articolate
-          $filtroClassi = [$avviso->getCattedra()->getClasse()->getId()];
-          $articolate = $this->em->getRepository(Classe::class)->classiArticolate($filtroClassi);
-          foreach ($articolate as $articolata) {
-            if (empty($articolata['comune'])) {
-              // se classe comune aggiunge tutti i gruppi
-              $filtroClassi = array_merge($filtroClassi, $articolata['gruppi']);
-            }
-          }
-          $avviso->setFiltroGenitori($filtroClassi);
-        } else {
-          // nessuna classe (non dovrebbe succedere)
-          $avviso->setFiltroGenitori([]);
-        }
+        $avviso->setFiltroGenitori($avviso->getCattedra() ? [$avviso->getCattedra()->getClasse()->getId()] : []);
       }
       $avviso->setFiltroAlunni($avviso->getFiltroGenitori());
       $avviso->setSedi(new ArrayCollection($avviso->getCattedra() ?

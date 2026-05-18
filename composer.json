@@ -16,6 +16,8 @@
         "google/apiclient": "^2.10",
         "knpuniversity/oauth2-client-bundle": "^2.1",
         "league/oauth2-google": "^4.0",
+        "lexik/jwt-authentication-bundle": "^3.2",
+        "nelmio/cors-bundle": "^2.6",
         "phpdocumentor/reflection-docblock": "^5.3",
         "phpoffice/phpword": "^0.18",
         "qipsius/tcpdf-bundle": "^3.0",

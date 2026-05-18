@@ -48,6 +48,11 @@ class LogSubscriber {
     }
     // inizializza
     $info = $this->log->leggeInfo();
+    if (empty($info) || !isset($info['utente'])) {
+      // nessuna info utente disponibile (es. richiesta API stateless): skip log
+      $this->log->svuotaLog();
+      return;
+    }
     $azioni = ['C' => 'Creazione nuovo oggetto', 'U' => 'Modifica oggetto esistente',
       'D' => 'Cancellazione oggetto esistente'];
     // processa i log in coda e li memorizza su database

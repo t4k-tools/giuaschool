@@ -159,16 +159,12 @@ class RegistroUtil {
    */
   public function azioneLezione(string $azione, DateTime $data, Docente $docente,
                                 Classe $classe, array $firme): bool {
-    // if ($this->bloccoScrutinio($data, $classe)) {
-    //   // blocco scrutinio
-    //   return false;
-    // }
+    if ($this->bloccoScrutinio($data, $classe)) {
+      // blocco scrutinio
+      return false;
+    }
     if ($azione == 'add') {
       // azione di creazione
-      if ($this->bloccoScrutinio($data, $classe)) {
-        // blocco scrutinio
-        return false;
-      }
       $oggi = new DateTime();
       if ($data->format('Y-m-d') <= $oggi->format('Y-m-d')) {
         // data non nel futuro
@@ -184,11 +180,6 @@ class RegistroUtil {
         return true;
       }
     } elseif ($azione == 'delete') {
-      // azione di cancellazione
-      if ($this->bloccoScrutinio($data, $classe)) {
-        // blocco scrutinio
-        return false;
-      }
       if (in_array($docente->getId(), array_reduce($firme, 'array_merge', []), true)) {
         // ok: docente ha firmato
         return true;
@@ -782,7 +773,7 @@ class RegistroUtil {
       $genitori = $this->em->getRepository(Genitore::class)->datiGenitori($lista);
       // dati alunni/assenze/ritardi/uscite
       $alunni = $this->em->getRepository(Alunno::class)->createQueryBuilder('a')
-        ->select('a.id AS id_alunno,a.cognome,a.nome,a.sesso,a.dataNascita,a.citta,a.bes,a.noteBes,a.autorizzaEntrata,a.autorizzaUscita,a.note,a.religione,a.username,a.ultimoAccesso,(a.classe) AS id_classe,ass.id AS id_assenza,e.id AS id_entrata,e.ora AS ora_entrata,e.note AS note_entrata,e.ritardoBreve,u.id AS id_uscita,u.ora AS ora_uscita,u.note AS note_uscita,p.id AS id_presenza,p.oraInizio,p.oraFine,p.tipo,p.descrizione')
+        ->select('a.id AS id_alunno,a.cognome,a.nome,a.sesso,a.dataNascita,a.citta,a.bes,a.noteBes,a.autorizzaEntrata,a.autorizzaUscita,a.note,a.religione,a.username,a.ultimoAccesso,(a.classe) AS id_classe,ass.id AS id_assenza,e.id AS id_entrata,e.ora AS ora_entrata,e.note AS note_entrata,e.ritardoBreve,e.valido AS valido_entrata,u.id AS id_uscita,u.ora AS ora_uscita,u.note AS note_uscita,u.valido AS valido_uscita,p.id AS id_presenza,p.oraInizio,p.oraFine,p.tipo,p.descrizione')
         ->leftJoin(Assenza::class, 'ass', 'WITH', 'a.id=ass.alunno AND ass.data=:data')
         ->leftJoin(Entrata::class, 'e', 'WITH', 'a.id=e.alunno AND e.data=:data')
         ->leftJoin(Uscita::class, 'u', 'WITH', 'a.id=u.alunno AND u.data=:data')

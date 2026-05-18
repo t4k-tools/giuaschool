@@ -10,6 +10,18 @@ security:
         class: App\Entity\Utente
         property: username
   firewalls:
+    api_login:
+      pattern: ^/api/auth/login$
+      stateless: true
+    api_public:
+      pattern: ^/api/public/
+      stateless: true
+      security: false
+    api:
+      pattern: ^/api/
+      stateless: true
+      provider: db_provider
+      jwt: ~
     main:
       lazy: true
       provider: db_provider
@@ -21,7 +33,6 @@ security:
         invalidate_session: false
       custom_authenticators:
         - 'App\Security\GSuiteAuthenticator'
-        - 'App\Security\MimSpidAuthenticator'
         - 'App\Security\SpidAuthenticator'
         - 'App\Security\FormAuthenticator'
         - 'App\Security\AppAuthenticator'

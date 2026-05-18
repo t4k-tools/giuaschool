@@ -1,3 +1,18 @@
+/*** fix: header center wrapper override - Bootstrap Italia impone height:80-120px
+   sul .it-header-center-wrapper vuoto, creando un blocco invisibile sui link ***/
+#gs-header .it-header-center-wrapper {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/*** fix: assicura che overlay e navbar-collapsable non blocchino i click ***/
+#gs-mainmenu .overlay {
+  pointer-events: none;
+}
+
+
 /*** slim header ***/
 #gs-header .it-header-slim-wrapper {
   background-color: #00264d; /* colore primario, variante a11 */

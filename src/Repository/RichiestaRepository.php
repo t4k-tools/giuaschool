@@ -10,9 +10,6 @@ namespace App\Repository;
 
 use DateTime;
 use App\Entity\Alunno;
-use App\Entity\Genitore;
-use App\Entity\DefinizioneAutorizzazione;
-use App\Entity\DefinizioneConsultazione;
 use App\Entity\Richiesta;
 use App\Entity\Staff;
 use App\Entity\Utente;
@@ -70,8 +67,9 @@ class RichiestaRepository extends BaseRepository {
       ->join('r.definizioneRichiesta', 'dr')
       ->join(Alunno::class, 'a', 'WITH', 'a.id=r.utente')
       ->join('r.classe', 'c')
-      ->where('NOT (dr INSTANCE OF '.DefinizioneConsultazione::class.') AND dr.gestione=1 AND c.sede=:sede')
+      ->where('dr.abilitata=:abilitata AND dr.gestione=1 AND c.sede=:sede')
       ->andWhere($sql)
+			->setParameter('abilitata', 1)
 			->setParameter('sede', $criteri['sede'])
       ->orderBy('dr.nome,r.data,r.inviata', 'ASC');
     // controllo tipo
@@ -154,9 +152,9 @@ class RichiestaRepository extends BaseRepository {
       ->join(Alunno::class, 'a', 'WITH', 'a.id=r.utente')
       ->join('a.classe', 'c')
       ->join('c.sede', 's')
-      ->where('NOT (dr INSTANCE OF '.DefinizioneConsultazione::class.') AND dr.abilitata=:abilitata AND dr.gestione=1 AND dr.tipo!=:tipo AND r.stato=:stato')
+      ->where('dr.abilitata=:abilitata AND dr.gestione=1 AND dr.tipo!=:tipo AND r.stato=:stato')
       ->andWhere($sql)
-      ->groupBy('s.nomeBreve')
+      ->groupBy('s.nomeBreve,s.ordinamento')
       ->orderBy('s.ordinamento', 'ASC')
 			->setParameter('abilitata', 1)
 			->setParameter('tipo', 'U')
@@ -196,7 +194,7 @@ class RichiestaRepository extends BaseRepository {
       ->join('r.definizioneRichiesta', 'dr')
       ->join('r.classe', 'c')
       ->join('c.sede', 's')
-      ->where("NOT (dr INSTANCE OF ".DefinizioneConsultazione::class.") AND dr.abilitata=1 AND dr.tipo=:tipo AND r.stato='I'")
+      ->where("dr.abilitata=1 AND dr.tipo=:tipo AND r.stato='I'")
       ->andWhere($sql)
 			->setParameter('tipo', $tipo)
       ->orderBy('s.ordinamento,c.anno,c.sezione,r.data', 'ASC');
@@ -248,7 +246,7 @@ class RichiestaRepository extends BaseRepository {
       ->join(Alunno::class, 'a', 'WITH', 'a.id=r.utente')
       ->join('r.classe', 'c')
       ->join('c.sede', 's')
-      ->where("NOT (dr INSTANCE OF ".DefinizioneConsultazione::class.") AND dr.abilitata=1 AND dr.gestione=0 AND dr.tipo='#' AND dr.id=:modulo AND r.stato='I'")
+      ->where("dr.abilitata=1 AND dr.gestione=0 AND dr.tipo='#' AND dr.id=:modulo AND r.stato='I'")
       ->andWhere($sql)
 			->setParameter('modulo', $criteri['tipo'])
       ->orderBy('s.ordinamento,c.anno,c.sezione,a.cognome,a.nome,r.data', 'ASC');
@@ -288,194 +286,6 @@ class RichiestaRepository extends BaseRepository {
       $dati = $this->paginazione($moduli->getQuery(), $pagina);
       // per evitare errori di paginazione
       $dati['lista']->setUseOutputWalkers(false);
-    }
-    // restituisce dati
-    return $dati;
-  }
-
-  /**
-   * Restituisce i dati dell'esito di una consultazione
-   *
-   * @param DefinizioneConsultazione $consultazione Consultazione da cui estrarre l'esito
-   *
-   * @return array Lista associativa con i dati
-   */
-  public function esito(DefinizioneConsultazione $consultazione): array {
-    // legge risposte
-    $risposte = $this->createQueryBuilder('r')
-      ->where('r.definizioneRichiesta=:id AND r.stato IN (:stati)')
-      ->setParameter('id', $consultazione)
-      ->setParameter('stati', ['I', 'G'])
-      ->getQuery()
-      ->getResult();
-    // inizializza esito
-    $dati = [];
-    $dati['totale'] = [];
-    $dati['lista'] = [];
-    $dati['statistica'] = [];
-    foreach (explode(',', $consultazione->getRichiedenti()) as $ruolo) {
-      $dati['totale'][$ruolo] = 0;
-      $dati['destinatari'][$ruolo] = 0;
-      foreach ($consultazione->getCampi() as $nome => $definizione) {
-        if (!$definizione[1]) {
-          // non risponde
-          $dati['lista'][$nome]['___NIENTE___'][$ruolo] = 0;
-        }
-      }
-    }
-    $dati['totale']['utenti'] = 0;
-    $dati['destinatari']['utenti'] = 0;
-    // conta risposte
-    foreach ($risposte as $risposta) {
-      foreach (explode(',', $consultazione->getRichiedenti()) as $ruolo) {
-        if ($risposta->getUtente()->controllaRuoloFunzione($ruolo)) {
-          foreach ($risposta->getValori() as $nome => $valore) {
-            if (!isset($dati['lista'][$nome][$valore][$ruolo])) {
-              $dati['lista'][$nome][$valore][$ruolo] = 0;
-            }
-            if (!isset($dati['lista'][$nome][$valore]['utenti'])) {
-              $dati['lista'][$nome][$valore]['utenti'] = 0;
-            }
-            $dati['lista'][$nome][$valore][$ruolo]++;
-            $dati['lista'][$nome][$valore]['utenti']++;
-            $dati['totale'][$ruolo]++;
-            $dati['totale']['utenti']++;
-          }
-          break;
-        }
-      }
-    }
-    // genera statistiche finali
-    foreach ($dati['lista'] as $nome => $valori) {
-      foreach ($valori as $valore => $ruoli) {
-        foreach ($ruoli as $ruolo => $conteggio) {
-          if ($dati['totale'][$ruolo] > 0) {
-            $dati['statistica'][$nome][$valore][$ruolo] = round(($conteggio / $dati['totale'][$ruolo]) * 100, 2);
-          } else {
-            $dati['statistica'][$nome][$valore][$ruolo] = 0;
-          }
-        }
-      }
-    }
-    // numero destinatari
-    $genitori = $this->getEntityManager()->getRepository(Genitore::class)->createQueryBuilder('g')
-      ->select('COUNT(g.id) AS totale')
-      ->join('g.alunno', 'a')
-      ->join('a.classe', 'c')
-      ->where("g.abilitato=1 AND a.abilitato=1 AND g.cognome NOT LIKE '#%' AND g.nome NOT LIKE '#%'");
-    $alunni = $this->getEntityManager()->getRepository(Alunno::class)->createQueryBuilder('a')
-      ->select('COUNT(a.id) AS totale')
-      ->join('a.classe', 'c')
-      ->where('a.abilitato=1');
-    if (!empty($consultazione->getSede())) {
-      // imposta sede
-      $genitori
-        ->andWhere('c.sede=:sede')
-        ->setParameter('sede', $consultazione->getSede());
-      $alunni
-        ->andWhere('c.sede=:sede')
-        ->setParameter('sede', $consultazione->getSede());
-    }
-    if (!empty($consultazione->getClassi())) {
-      // imposta classi
-      $genitori
-        ->andWhere('c.id IN (:classi)')
-        ->setParameter('classi', $consultazione->getClassi());
-      $alunni
-        ->andWhere('c.id IN (:classi)')
-        ->setParameter('classi', $consultazione->getClassi());
-    }
-    foreach (explode(',', $consultazione->getRichiedenti()) as $ruolo) {
-      if ($ruolo == 'GN') {
-        // genitori
-        $dati['destinatari'][$ruolo] = $genitori
-          ->getQuery()
-          ->getSingleScalarResult();
-        $dati['destinatari']['utenti'] += $dati['destinatari'][$ruolo];
-      }
-      if ($ruolo == 'AN') {
-        // alunni
-        $dati['destinatari'][$ruolo] = $alunni
-          ->getQuery()
-          ->getSingleScalarResult();
-        $dati['destinatari']['utenti'] += $dati['destinatari'][$ruolo];
-      }
-    }
-    // restituisce dati
-    return $dati;
-  }
-
-  /**
-   * Restituisce la lista delle autorizzazioni firmate per il modulo e l'alunno indicato
-   *
-   * @param DefinizioneAutorizzazione $modulo Modulo di autorizzazione
-   * @param Alunno $alunno Alunno che si sta autorizzazando
-   *
-   * @return array Lista associativa con i dati
-   */
-  public function autorizzazioni(DefinizioneAutorizzazione $modulo, Alunno $alunno): array {
-    // legge autorizzazioni
-    $autorizzazioni = $this->createQueryBuilder('r')
-      ->join(Genitore::class, 'g1', 'WITH', 'g1.alunno=:alunno')
-      ->join(Genitore::class, 'g2', 'WITH', 'g2.alunno=:alunno AND g2.id!=g1.id AND g2.username > g1.username')
-      ->where('r.definizioneRichiesta=:modulo AND r.stato IN (:stati)')
-      ->andWhere('r.utente=:alunno OR r.utente=g1.id OR r.utente=g2.id')
-      ->setParameter('alunno', $alunno)
-      ->setParameter('modulo', $modulo)
-      ->setParameter('stati', ['I', 'G'])
-      ->orderBy('r.inviata', 'ASC')
-      ->getQuery()
-      ->getResult();
-    // restituisce dati
-    return $autorizzazioni;
-  }
-
-  /**
-   * Restituisce i dettagli sulle autorizzazioni firmate per il modulo indicato
-   *
-   * @param DefinizioneAutorizzazione $modulo Modulo di autorizzazione
-   *
-   * @return array Lista associativa con i dati
-   */
-  public function autorizzazioniDettagli(DefinizioneAutorizzazione $modulo): array {
-    // legge autorizzazioni
-    $autorizzazioni = $this->createQueryBuilder('r')
-      ->select("(r.utente) AS utente,c.anno,c.sezione,c.gruppo,a.id AS alu_id,CONCAT(a.cognome,' ',a.nome) AS alu_nome,g1.id AS gen1_id,CONCAT(g1.cognome,' ',g1.nome) AS gen1_nome, g2.id AS gen2_id,CONCAT(g2.cognome,' ',g2.nome) AS gen2_nome")
-      ->join(Alunno::class, 'a')
-      ->join('a.classe', 'c')
-      ->join(Genitore::class, 'g1', 'WITH', 'g1.alunno=a.id')
-      ->join(Genitore::class, 'g2', 'WITH', 'g2.alunno=a.id AND g2.id!=g1.id AND g2.username>g1.username')
-      ->where('r.definizioneRichiesta=:modulo AND r.stato IN (:stati)')
-      ->andWhere('r.utente=a.id OR r.utente=g1.id OR r.utente=g2.id')
-      ->setParameter('modulo', $modulo)
-      ->setParameter('stati', ['I', 'G'])
-      ->orderBy('c.anno,c.sezione,c.gruppo,a.cognome,a.nome', 'ASC')
-      ->getQuery()
-      ->getResult();
-    // raggruppa dati per classe e alunno
-    $dati = [];
-    foreach ($autorizzazioni as $autorizzazione) {
-      $classe = $autorizzazione['anno'].'ª '.$autorizzazione['sezione'].
-        ($autorizzazione['gruppo'] ? '-'.$autorizzazione['gruppo'] : '');
-      $aluId = $autorizzazione['alu_id'];
-      if (!isset($dati[$classe][$aluId])) {
-        $dati[$classe][$aluId] = [
-          'alunno' => $autorizzazione['alu_nome'],
-          'genitore1' => $autorizzazione['gen1_nome'],
-          'genitore2' => $autorizzazione['gen2_nome'],
-          'alu_autorizza' => false,
-          'gen1_autorizza' => false,
-          'gen2_autorizza' => false];
-      }
-      if ($autorizzazione['utente'] == $aluId) {
-        $dati[$classe][$aluId]['alu_autorizza'] = true;
-      }
-      if ($autorizzazione['utente'] == $autorizzazione['gen1_id']) {
-        $dati[$classe][$aluId]['gen1_autorizza'] = true;
-      }
-      if ($autorizzazione['utente'] == $autorizzazione['gen2_id']) {
-        $dati[$classe][$aluId]['gen2_autorizza'] = true;
-      }
     }
     // restituisce dati
     return $dati;

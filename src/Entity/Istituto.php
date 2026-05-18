@@ -167,6 +167,48 @@ class Istituto implements Stringable {
   #[Assert\Email(message: 'field.email')]
   private ?string $emailNotifiche = '';
 
+  /**
+   * @var string|null $logoUrl URL del logo dell'istituto scolastico
+   */
+  #[ORM\Column(name: 'logo_url', type: Types::STRING, length: 2048, nullable: true)]
+  private ?string $logoUrl = null;
+
+  /**
+   * @var string|null $indirizzo Indirizzo dell'istituto scolastico
+   */
+  #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+  private ?string $indirizzo = null;
+
+  /**
+   * @var string|null $cap CAP dell'istituto scolastico
+   */
+  #[ORM\Column(type: Types::STRING, length: 10, nullable: true)]
+  private ?string $cap = null;
+
+  /**
+   * @var string|null $citta Città dell'istituto scolastico
+   */
+  #[ORM\Column(type: Types::STRING, length: 128, nullable: true)]
+  private ?string $citta = null;
+
+  /**
+   * @var string|null $provincia Provincia dell'istituto scolastico
+   */
+  #[ORM\Column(type: Types::STRING, length: 2, nullable: true)]
+  private ?string $provincia = null;
+
+  /**
+   * @var string|null $telefono Numero di telefono dell'istituto scolastico
+   */
+  #[ORM\Column(type: Types::STRING, length: 32, nullable: true)]
+  private ?string $telefono = null;
+
+  /**
+   * @var string|null $codiceMeccanografico Codice meccanografico dell'istituto
+   */
+  #[ORM\Column(name: 'codice_meccanografico', type: Types::STRING, length: 16, nullable: true)]
+  private ?string $codiceMeccanografico = null;
+
 
   //==================== EVENTI ORM ====================
   /**
@@ -448,6 +490,45 @@ class Istituto implements Stringable {
     $this->emailNotifiche = $emailNotifiche;
     return $this;
   }
+
+  /**
+   * Restituisce l'URL del logo dell'istituto scolastico
+   *
+   * @return string|null URL del logo
+   */
+  public function getLogoUrl(): ?string {
+    return $this->logoUrl;
+  }
+
+  /**
+   * Modifica l'URL del logo dell'istituto scolastico
+   *
+   * @param string|null $logoUrl URL del logo
+   *
+   * @return self Oggetto modificato
+   */
+  public function setLogoUrl(?string $logoUrl): self {
+    $this->logoUrl = $logoUrl ?: null;
+    return $this;
+  }
+
+  public function getIndirizzo(): ?string { return $this->indirizzo; }
+  public function setIndirizzo(?string $indirizzo): self { $this->indirizzo = $indirizzo ?: null; return $this; }
+
+  public function getCap(): ?string { return $this->cap; }
+  public function setCap(?string $cap): self { $this->cap = $cap ?: null; return $this; }
+
+  public function getCitta(): ?string { return $this->citta; }
+  public function setCitta(?string $citta): self { $this->citta = $citta ?: null; return $this; }
+
+  public function getProvincia(): ?string { return $this->provincia; }
+  public function setProvincia(?string $provincia): self { $this->provincia = $provincia ?: null; return $this; }
+
+  public function getTelefono(): ?string { return $this->telefono; }
+  public function setTelefono(?string $telefono): self { $this->telefono = $telefono ?: null; return $this; }
+
+  public function getCodiceMeccanografico(): ?string { return $this->codiceMeccanografico; }
+  public function setCodiceMeccanografico(?string $codiceMeccanografico): self { $this->codiceMeccanografico = $codiceMeccanografico ?: null; return $this; }
 
 
   //==================== METODI DELLA CLASSE ====================

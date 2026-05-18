@@ -203,10 +203,7 @@ class ScrutinioController extends BaseController {
               }
               if ($prop->getUnico() === null) {
                 // nessun voto
-                if ($cattedra->getMateria()->getTipo() != 'E') {
-                  // manca voto (esclusa Ed.Civica)
-                  $errori[0] = 'exception.no_voto';
-                }
+                $errori[0] = 'exception.no_voto';
                 continue;
               }
               if ($prop->getUnico() < $info['valutazioni']['min']) {
@@ -216,12 +213,12 @@ class ScrutinioController extends BaseController {
                 // corregge voto max
                 $form->get('lista')->getData()[$key]->setUnico($info['valutazioni']['max']);
               }
-              // if (!empty($elenco['sospesi'][$key]) && $prop->getUnico() < $elenco['sospesi'][$key]->getUnico()) {
-              //   // voto inferiore a quello dello scrutinio di giugno: non lo memorizza
-              //   $errori[1] = 'exception.proposta_sospeso_inferiore_a_finale';
-              //   $this->em->detach($prop);
-              //   continue;
-              // }
+              if (!empty($elenco['sospesi'][$key]) && $prop->getUnico() < $elenco['sospesi'][$key]->getUnico()) {
+                // voto inferiore a quello dello scrutinio di giugno: non lo memorizza
+                $errori[1] = 'exception.proposta_sospeso_inferiore_a_finale';
+                $this->em->detach($prop);
+                continue;
+              }
               if ($prop->getUnico() < $info['valutazioni']['suff'] && $prop->getRecupero() === null && !isset($opzioni['attr']['no_recupero'])) {
                 // manca tipo recupero
                 $errori[2] = 'exception.no_recupero';
@@ -456,23 +453,17 @@ class ScrutinioController extends BaseController {
       }
     }
     // controllo materia
-    if ($periodo == 'X') {
-      // scrutinio di A.S. precedente
-      $materia = $this->em->getRepository(Materia::class)->find($materia);
-    } else {
-      // scrutinio degli altri periodi
-      $materia = $this->em->getRepository(Materia::class)->createQueryBuilder('m')
-        ->join(Cattedra::class, 'c', 'WITH', 'c.materia=m.id')
-        ->join('c.classe', 'cl')
-        ->where("m.id=:materia AND c.attiva=1 AND c.tipo='N' AND cl.anno=:anno AND cl.sezione=:sezione AND (cl.gruppo=:gruppo OR cl.gruppo='' OR cl.gruppo IS NULL)")
-        ->setParameter('materia', $materia)
-        ->setParameter('anno', $classe->getAnno())
-        ->setParameter('sezione', $classe->getSezione())
-        ->setParameter('gruppo', $classe->getGruppo())
-        ->setMaxResults(1)
-        ->getQuery()
-        ->getOneOrNullResult();
-    }
+    $materia = $this->em->getRepository(Materia::class)->createQueryBuilder('m')
+      ->join(Cattedra::class, 'c', 'WITH', 'c.materia=m.id')
+      ->join('c.classe', 'cl')
+      ->where("m.id=:materia AND c.attiva=1 AND c.tipo='N' AND cl.anno=:anno AND cl.sezione=:sezione AND (cl.gruppo=:gruppo OR cl.gruppo='' OR cl.gruppo IS NULL)")
+      ->setParameter('materia', $materia)
+      ->setParameter('anno', $classe->getAnno())
+      ->setParameter('sezione', $classe->getSezione())
+      ->setParameter('gruppo', $classe->getGruppo())
+      ->setMaxResults(1)
+      ->getQuery()
+      ->getOneOrNullResult();
     if (!$materia) {
       // errore
       throw $this->createNotFoundException('exception.id_notfound');

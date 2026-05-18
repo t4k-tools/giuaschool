@@ -189,7 +189,6 @@ class DocenteRepository extends BaseRepository {
 
   /**
    * Restituisce la lista dei docenti abilitati, secondo i criteri di ricerca indicati
-   * NB: vengono sempre inclusi i docenti senza cattedra (es. staff)
    *
    * @param array $cerca Lista dei criteri di ricerca
    * @param int $pagina Pagina corrente
@@ -203,7 +202,7 @@ class DocenteRepository extends BaseRepository {
       ->leftJoin(Cattedra::class, 'c', 'WITH', 'c.docente=d.id AND c.attiva=:attiva')
       ->leftJoin('c.classe', 'cl')
       ->where('d.nome LIKE :nome AND d.cognome LIKE :cognome AND (NOT d INSTANCE OF App\Entity\Preside) AND d.abilitato=:abilitato')
-      ->andWhere('cl.sede IN (:sedi) OR cl.id IS NULL')
+      ->andWhere('cl.sede IN (:sedi) OR (cl.id IS NULL AND d INSTANCE OF App\Entity\Staff)')
 			->setParameter('attiva', 1)
 			->setParameter('nome', $cerca['nome'].'%')
 			->setParameter('cognome', $cerca['cognome'].'%')
@@ -247,6 +246,47 @@ class DocenteRepository extends BaseRepository {
     }
     // crea lista con pagine
     return $this->paginazione($query->getQuery(), $pagina);
+  }
+
+  /**
+   * Restituisce la lista delle sedi di lavoro del docente indicato
+   *
+   * @param Docente $docente Docente di cui cercare le sedi
+   *
+   * @return array Lista delle sedi
+   */
+  public function sedi(Docente $docente): array {
+    // legge sedi
+    $sedi = $this->createQueryBuilder('d')
+      ->select('DISTINCT s.id,s.nomeBreve,s.ordinamento')
+      ->join(Cattedra::class, 'c', 'WITH', 'c.docente=d.id AND c.attiva=:attiva')
+      ->join('c.classe', 'cl')
+      ->join('cl.sede', 's')
+      ->where('d.id=:docente')
+			->setParameter('attiva', 1)
+			->setParameter('docente', $docente)
+      ->orderBy('s.ordinamento', 'ASC')
+      ->getQuery()
+      ->getArrayResult();
+    if (count($sedi) == 0) {
+      // nessuna cattedra: imposta tutte le sedi
+      $sedi = $this->getEntityManager()->getRepository(Sede::class)->createQueryBuilder('s')
+        ->select('s.id,s.nomeBreve')
+        ->orderBy('s.ordinamento', 'ASC')
+        ->getQuery()
+        ->getArrayResult();
+    }
+    // crea lista
+    $listaSedi = [];
+    foreach ($sedi as $sede) {
+      $listaSedi[$sede['nomeBreve']] = $sede['id'];
+    }
+    if (count($sedi) > 1) {
+      // aggiunge opzione vuota
+      $listaSedi[''] = '';
+    }
+    // restituisce lista
+    return $listaSedi;
   }
 
   /**

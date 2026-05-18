@@ -215,25 +215,6 @@ class AvvisoRepository extends BaseRepository {
     }
     // paginazione
     $dati = $this->paginazione($avvisi->getQuery(), $pagina);
-    // aggiunge info classi
-    $dati['classi'] = [];
-    foreach ($dati['lista'] as $k => $a) {
-      $classi = $this->getEntityManager()->getRepository(ComunicazioneClasse::class)->createQueryBuilder('cc')
-        ->select('cc.id,cl.anno,cl.sezione,cl.gruppo')
-        ->join('cc.classe', 'cl')
-        ->where('cc.comunicazione=:avviso')
-        ->orderBy('cl.anno,cl.sezione,cl.gruppo')
-        ->setParameter('avviso', $a['avviso']->getId())
-        ->getQuery()
-        ->getArrayResult();
-      $dati['classi'][$k] = array_map(
-        fn($c): string => $c['anno'].'ª '.$c['sezione'].($c['gruppo'] ? ('-'.$c['gruppo']) : ''), $classi);
-      // aggiunge statistiche di lettura
-      if (in_array($a['avviso']->getTipo(), ['E', 'U', 'A']) && $utente->controllaRuolo('DSP')) {
-        $dati['statistiche'][$k] = $this->getEntityManager()->getRepository(ComunicazioneUtente::class)
-          ->statistiche($a['avviso']);
-      }
-    }
     // restituisce dati
     return $dati;
   }
@@ -272,6 +253,7 @@ class AvvisoRepository extends BaseRepository {
       ->select('COUNT(a.id)')
       ->join(ComunicazioneClasse::class, 'cc', 'WITH', 'cc.comunicazione=a.id')
       ->where("a.stato='P' AND cc.classe=:classe AND cc.letto IS NULL")
+      ->orderBy('a.data', 'ASC')
 			->setParameter('classe', $classe)
       ->getQuery()
       ->getSingleScalarResult();
@@ -372,7 +354,6 @@ class AvvisoRepository extends BaseRepository {
         ->select('DISTINCT DAY(c.data) AS giorno')
         ->join('rc.colloquio', 'c')
         ->where("rc.stato='C' AND c.abilitato=1 AND MONTH(c.data)=:mese AND YEAR(c.data)=:anno")
-        ->orderBy('DAY(c.data)', 'ASC')
         ->setParameter('mese', $mese->format('n'))
         ->setParameter('anno', $mese->format('Y'));
       if ($utente instanceOf Docente) {

@@ -16,8 +16,6 @@ use App\Entity\Materia;
 use App\Entity\Provisioning;
 use App\Entity\Sede;
 use App\Entity\Staff;
-use App\Event\UtenteCreatoEvent;
-use App\Event\UtenteModificatoEvent;
 use App\Form\CattedraSupplenzaType;
 use App\Form\CattedraType;
 use App\Form\DocenteType;
@@ -30,7 +28,6 @@ use App\Util\PdfManager;
 use App\Util\StaffUtil;
 use Exception;
 use Psr\Log\LoggerInterface;
-use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
@@ -87,8 +84,8 @@ class DocentiController extends BaseController {
       // trova file caricato
       $file = null;
       foreach ($this->reqstack->getSession()->get($var_sessione.'/file', []) as $f) {
-        $file = new File($this->getParameter('dir_tmp').'/'.$f['temp'].'.'.$f['ext']);
-     }
+        $file = new File($this->getParameter('dir_tmp').'/'.$f['temp']);
+      }
       // importa file
       switch ($form->get('tipo')->getData()) {
         case 'U':
@@ -203,45 +200,55 @@ class DocentiController extends BaseController {
    *
    * @param Request $request Pagina richiesta
    * @param EventDispatcherInterface $dispatcher Gestore degli eventi di sistema
-   * @param Docente $docente Docente da modificare, nullo se si effettua una creazione
+   * @param int $id ID dell'utente
    *
    * @return Response Pagina di risposta
    */
-  #[Route(path: '/docenti/modifica/edit/{docente}', name: 'docenti_modifica_edit', requirements: ['docente' => '\d+'], defaults: ['docente' => 0], methods: ['GET', 'POST'])]
+  #[Route(path: '/docenti/modifica/edit/{id}', name: 'docenti_modifica_edit', requirements: ['id' => '\d+'], defaults: ['id' => '0'], methods: ['GET', 'POST'])]
   #[IsGranted('ROLE_AMMINISTRATORE')]
-  public function modificaEdit(Request $request, EventDispatcherInterface $dispatcher,
-                               #[MapEntity] ?Docente $docente=null
-                               ): Response {
+  public function modificaEdit(Request $request, EventDispatcherInterface $dispatcher, int $id): Response {
     // controlla azione
-    if ($docente) {
+    if ($id > 0) {
       // azione edit
-      $edit = true;
-      $vecchioDocente = clone $docente;
-    } elseif ($request->attributes->get('docente') == 0)  {
+      $docente = $this->em->getRepository(Docente::class)->find($id);
+      if (!$docente) {
+        // errore
+        throw $this->createNotFoundException('exception.id_notfound');
+      }
+      $docente_old = ['cognome' => $docente->getCognome(), 'nome' => $docente->getNome(),
+        'sesso' => $docente->getSesso()];
+    } else {
       // azione add
-      $edit = false;
       $docente = (new Docente())
         ->setAbilitato(true)
         ->setPassword('NOPASSWORD');
       $this->em->persist($docente);
-    } else {
-      // errore
-      throw $this->createNotFoundException('exception.id_notfound');
     }
     // form
     $form = $this->createForm(DocenteType::class, $docente, ['return_url' => $this->generateUrl('docenti_modifica')]);
     $form->handleRequest($request);
     if ($form->isSubmitted() && $form->isValid()) {
+      // provisioning
+      if (!$id) {
+        // crea docente
+        $provisioning = (new Provisioning())
+          ->setUtente($docente)
+          ->setFunzione('creaUtente')
+          ->setDati(['password' => 'NOPASSWORD']);
+        $this->em->persist($provisioning);
+      } elseif ($docente->getCognome() != $docente_old['cognome'] || $docente->getNome() != $docente_old['nome'] ||
+                $docente->getSesso() != $docente_old['sesso']) {
+        // modifica dati docente
+        $provisioning = (new Provisioning())
+          ->setUtente($docente)
+          ->setFunzione('modificaUtente')
+          ->setDati([]);
+        $this->em->persist($provisioning);
+      }
       // memorizza modifiche
       $this->em->flush();
-      // invoca eventi
-      if ($edit) {
-        // docente modificato
-        $dispatcher->dispatch(new UtenteModificatoEvent($docente, UtenteModificatoEvent::MODIFICATO, $vecchioDocente));
-      } else {
-        // docente creato
-        $dispatcher->dispatch(new UtenteCreatoEvent($docente));
-      }
+      // invia evento UtenteCreato
+      // $dispatcher->dispatch(new UtenteCreatoEvent($docente));
       // messaggio
       $this->addFlash('success', 'message.update_ok');
       // redirect

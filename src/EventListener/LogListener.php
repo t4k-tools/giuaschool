@@ -147,20 +147,24 @@ class LogListener {
     if ($cont > 0) {
       $req = $this->request->getCurrentRequest();
       $tok = $this->token->getToken();
+      if (!$tok || !$tok->getUser()) {
+        // nessun token di sessione (es. richiesta API stateless): skip log
+        return;
+      }
       // dati utente
-      $utente = $tok ? $tok->getUser() : null;
+      $utente = $tok->getUser();
       $this->info['utente'] = $utente;
-      $this->info['username'] = $utente ? $utente->getUserIdentifier() : '--ANONIMO--';
-      $this->info['ruolo'] = $utente ? $utente->getRoles()[0] : '--NESSUNO--';
+      $this->info['username'] = $utente->getUserIdentifier();
+      $this->info['ruolo'] = $utente->getRoles()[0];
       $this->info['alias'] = ($tok instanceOf SwitchUserToken) ?
         $tok->getOriginalToken()->getUser()->getUserIdentifier() : null;
       // dati di navigazione
-      $this->info['origine'] = $req ? $req->attributes->get('_controller') : '--COMMAND--';
+      $this->info['origine'] = $req->attributes->get('_controller');
       if (empty($this->info['origine']) && $req->getPathInfo() === '/logout/') {
         // caso particolare: per il logout non ci sono dati nel controller
         $this->info['origine'] = 'App\Controller\LoginController::logout';
       }
-      $this->info['ip'] = $req ? $req->getClientIp() : '--CONSOLE--';
+      $this->info['ip'] = $req->getClientIp();
       $this->info['categoria'] = 'DATABASE';
     }
   }

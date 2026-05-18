@@ -293,8 +293,10 @@ class ComunicazioniUtil {
         ->getIdRappresentantiClasse(['S'], $sedi, $comunicazione->getRappresentantiAlunni(),
         $comunicazione->getFiltroRappresentantiAlunni()));
     }
-    // imposta utenti destinatari
+    // destinatari univoci
     $utenti = array_unique($utenti);
+    $classi = array_unique($classi);
+    // imposta utenti destinatari
     foreach ($utenti as $utente) {
       $obj = (new ComunicazioneUtente())
         ->setComunicazione($comunicazione)
@@ -302,16 +304,11 @@ class ComunicazioniUtil {
       $this->em->persist($obj);
     }
     // imposta classi destinatarie
-    if ($comunicazione instanceOf Circolare ||
-        ($comunicazione instanceOf Avviso && in_array($comunicazione->getTipo(), ['U', 'E', 'A', 'C']))) {
-      // solo per circolari e avvisi uscite/ritardi/attività/generici
-      $classi = array_unique($classi);
-      foreach ($classi as $classe) {
-        $obj = (new ComunicazioneClasse())
-          ->setComunicazione($comunicazione)
-          ->setClasse($this->em->getReference(Classe::class, $classe));
-        $this->em->persist($obj);
-      }
+    foreach ($classi as $classe) {
+      $obj = (new ComunicazioneClasse())
+        ->setComunicazione($comunicazione)
+        ->setClasse($this->em->getReference(Classe::class, $classe));
+      $this->em->persist($obj);
     }
   }
 
@@ -1810,8 +1807,6 @@ class ComunicazioniUtil {
       if ($this->azioneAvviso('delete', $a->getData(), $docente, $a)) {
         $dati['azioni'][$k]['delete'] = 1;
       }
-      // aggiunge dettagli
-      $dati['statistiche'][$k] = $this->em->getRepository(ComunicazioneUtente::class)->statistiche($a);
     }
     // pulsante add
     if ($this->azioneAvviso('add', new DateTime(), $docente, null)) {

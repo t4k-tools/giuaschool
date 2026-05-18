@@ -115,7 +115,7 @@ label.criterio_credito_desc_F: Frequenza assidua
 label.criterio_credito_desc_I: Interesse e impegno
 label.criterio_credito_desc_L: Corsi di lingue certificati da un ente esterno
 label.criterio_credito_desc_O: Svolgimento attività come rappresentante negli Organi Collegiali scolastici
-label.criterio_credito_desc_P: Proficua partecipazione alla FSL e alle altre attività organizzate dall'Istituto
+label.criterio_credito_desc_P: Proficua partecipazione ai PCTO e alle altre attività organizzate dall'Istituto
 label.criterio_credito_desc_R: Proficua partecipazione alle lezioni della Religione o Attività alternativa
 label.criterio_credito_desc_S: Attività sociali e sportive certificate da un ente esterno
 label.criterio_credito_sospeso_si: Almeno un voto superiore al 6 nelle materie con debito formativo
@@ -319,7 +319,6 @@ label.ROLE_PRESIDE: Preside
 label.ROLE_STAFF: Staff
 label.ROLE_UTENTE: Utente
 label.sabato: Sabato
-label.scegli_sede: Scegli la sede
 label.scegli_alunni: Scegli gli alunni
 label.scegli_alunno: Scegli l'alunno
 label.scegli_cattedra: Scegli la classe e la materia
@@ -390,8 +389,6 @@ label.uscite_anticipate: Uscite anticipate
 label.username: Nome utente
 label.utente: Utente
 label.utenti: Utenti
-label.stato_abilitato: Abilitato
-label.stato_disabilitato: Disabilitato
 label.utente_attivo: Utente attivo
 label.utente_disabilitato: Utente disabilitato
 label.valutazione_O: orale
@@ -600,8 +597,6 @@ label.tipo_time: Ora
 label.minus: -
 label.invia_richiesta: Nuova richiesta
 label.invia_modulo: Nuovo modulo
-label.invia_risposta: Invia risposta
-label.cancella_risposta: Cancella risposta
 label.cancella_richiesta: Cancella richiesta
 label.cancella_modulo: Cancella modulo
 label.richieste_scadute: Richieste scadute
@@ -645,7 +640,7 @@ label.mailserver_port: Porta del server di posta
 label.mailserver_email: Indirizzo a cui spedire la mail di prova
 label.scegli_rappresentanti: Scegli i rappresentanti
 label.filtro_rappresentanti: Filtro per rappresentanti
-label.presenza_tipo_P: FSL
+label.presenza_tipo_P: PCTO
 label.presenza_tipo_M: Mobilità europea
 label.presenza_tipo_S: Attività a scuola
 label.presenza_tipo_E: Attività esterna
@@ -675,7 +670,7 @@ label.gruppo_religione_N: Gruppo N.A.
 label.RSPP: RSPP
 label.modulo_formativo: Modulo formativo
 label.modulo_formativo_tipo_O: Orientamento formativo
-label.modulo_formativo_tipo_P: FSL
+label.modulo_formativo_tipo_P: PCTO
 label.filtro_tipo_modulo_formativo: Filtro sul tipo del modulo formativo
 label.filtro_modulo_formativo: Filtro sul modulo formativo
 label.qualsiasi_tipo: Qualsiasi tipo
@@ -692,59 +687,6 @@ label.tutti_tipi: Tutti i tipi
 label.tutti_mesi: Tutti i mesi
 label.filtro_tipo: Filtra per tipo
 label.filtro_tipo_documenti: Filtra per tipo di documento
-label.pagina_voti_compatta: Visualizza i voti in modo compatto (vecchio stile)?
-label.pagina_voti_medie_tipi: Visualizza anche le medie per tipo di voto?
-label.pagina_voti_scritto: Visualizza le valutazioni scritte/grafiche?
-label.pagina_voti_orale: Visualizza le valutazioni orali?
-label.pagina_voti_pratico: Visualizza le valutazioni pratiche?
-label.nome_consultazione: Nome della consultazione
-label.destinatari_consultazione: Destinatari della consultazione
-label.campi_consultazione: Lista dei campi della consultazione
-label.template_consultazione: Nome del file del modello
-label.data_inizio_consultazione: Data dell'apertura della consultazione
-label.ora_inizio_consultazione: Ora dell'apertura della consultazione
-label.data_fine_consultazione: Data della chiusura della consultazione
-label.ora_fine_consultazione: Ora della chiusura della consultazione
-label.classi_consultazione: Classi dei destinatari
-label.sedi_consultazione: Sedi della consultazione
-label.comprime: Crea ZIP
-label.seleziona_opzione: Scegli l'opzione
-label.consultazione_in_attesa: In attesa
-label.consultazione_in_corso: In corso
-label.consultazione_chiusa: Terminata
-label.consultazione_risposte: Risposte inviate
-label.nome_attivita: Nome
-label.tipo_attivita: Tipo
-label.tipo_attivita_U: Uscita didattica
-label.tipo_attivita_V: Visita guidata
-label.tipo_attivita_C: Conferenza
-label.tipo_attivita_E: Evento
-label.tipo_attivita_A: Attività generica
-label.data_attivita: Data
-label.ora_inizio_attivita: Inizio
-label.ora_fine_attivita: Fine
-label.destinazione_attivita: Destinazione
-label.svolgimento_attivita: Modalità
-label.svolgimento_attivita_P: A piedi
-label.svolgimento_attivita_M: Con i mezzi pubblici
-label.svolgimento_attivita_A: Altro
-label.accompagnatori_attivita: Accompagnatori
-label.partenza_attivita: Luogo di partenza
-label.rientro_attivita: Rientro
-label.rientro_attivita_S: Al termine dell'attività, gli studenti rientreranno a Scuola
-label.rientro_attivita_C: Al termine dell'attività, gli studenti potranno rientrare al proprio domicilio
-label.descrizione_attivita: Descrizione attività
-label.luogo_sede_attivita: Presso la sede
-label.luogo_aula_attivita: Nell'aula
-label.esterni_attivita: Esperti esterni
-label.sedi_attivita: Sede
-label.classi_attivita: Classi
-label.filtro_tipo_attivita: Filtra per tipo di attività
-label.tutte_attivita: Qualsiasi attività
-label.filtro_nome: Filtra per nome
-label.mimspid_abilitazione: Abilita l'accesso SPID/CIE
-label.mimspid_client: Codice del client configurato sul SIDI
-label.mimspid_secret: Codice segreto configurato sul SIDI
 
 
 ##### PAGINE #####
@@ -853,8 +795,8 @@ title.scuola.orario_scansione: Modifica i dati della scansione oraria
 page.scuola.moduli: Configura Moduli
 title.scuola.moduli: Moduli di richiesta
 title.scuola.moduli_edit: Modifica i dati di un modulo di richiesta
-page.richieste.lista: Lista Moduli
-title.richieste.lista: Lista dei moduli
+page.richieste.lista: Lista Richieste
+title.richieste.lista: Lista delle richieste
 page.richieste.add: Modifica Richiesta
 title.richieste.add: Invia un modulo
 page.richieste.uscita: Gestione Uscite
@@ -923,8 +865,6 @@ title.richieste.classe_add: Inserimento di un nuovo modulo
 page.richieste.modulo: Gestione Moduli
 title.richieste.modulo_evacuazione: Moduli per le prove di evacuazione
 title.richieste.modulo_lista: Moduli inviati
-page.richieste.consultazioni: Visualizza Consultazioni
-title.richieste.consultazioni: Visualizza le consultazioni
 page.ruolo_staff.studenti: Statistiche Condotta
 title.ruolo_staff.studenti_condotta: Statistiche sulla condotta degli alunni
 page.docenti.rspp: Configura RSPP
@@ -932,27 +872,13 @@ title.docenti.rspp: Configura il responsabile della sicurezza (RSPP)
 page.circolari_archivio: Archivio Circolari
 title.circolari_archivio: Archivio delle circolari degli anni passati
 page.scuola.moduliFormativi: Moduli Formativi
-title.scuola.moduliFormativi: Gestione dei moduli formativi per l'orientamento/FSL
-title.scuola.moduliFormativi_edit: Modifica di un modulo formativo per l'orientamento/FSL
+title.scuola.moduliFormativi: Gestione dei moduli formativi per l'orientamento/PCTO
+title.scuola.moduliFormativi_edit: Modifica di un modulo formativo per l'orientamento/PCTO
 page.coordinatore.moduliFormativi: Moduli Formativi
 title.coordinatore.moduliFormativi: Moduli formativi svolti nella classe
 title.coordinatore.moduliFormativi_alunni: Moduli formativi seguiti dagli alunni della classe
 page.avvisi_gestione: Gestione Avvisi
 title.avvisi_gestione: Gestione degli avvisi
-page.scuola.consultazioni: Configura Consultazioni
-title.scuola.consultazioni: Lista consultazioni
-title.scuola.consultazioni_edit: Modifica i dati di una consultazione
-page.autorizzazioni.lista: Gestione Autorizzazioni
-title.autorizzazioni.lista: Gestione dei moduli di autorizzazione delle attività
-page.autorizzazioni.edit: Modifica Autorizzazione
-title.autorizzazioni.edit: Crea o modifica il modulo di autorizzazione per una attività
-page.autorizzazioni.add: Invia Autorizzazione
-title.autorizzazioni.add: Invia l'autorizzazione dell'attività
-page.autorizzazioni.dettagli: Dettagli Autorizzazione
-title.autorizzazioni.dettagli: Dettagli per l'autorizzazione dell'attività
-page.sistema.spid: Configura SPID/CIE
-title.sistema.spid: Configurazione accesso SPID/CIE tramite gateway del MIM
-
 
 page.agenda_compito: Agenda Compiti
 page.agenda_eventi: Agenda Eventi
@@ -1225,7 +1151,6 @@ title.voti_classe: Aggiungi o modifica una valutazione per la classe
 title.piano_integrativo_apprendimenti: Piano di Integrazione degli Apprendimenti
 title.gestione_colloqui: Inserimento delle ore di colloquio
 title.date_colloqui: Date confermate
-title.lezioni_voti_configura: Configura la visualizzazione della pagina con i voti
 
 
 ##### MESSAGGI #####
@@ -1260,7 +1185,7 @@ message.scrutinio_non_attivo: Non è possibile inserire o modificare i dati dell
 message.giudizio_condotta_NC: "Non ci sono elementi di valutazione."
 message.giudizio_condotta_5: "Ha assunto comportamenti di particolare gravità
 riconducibili alle fattispecie per le quali lo Statuto delle studentesse e degli
-studenti, nonché il regolamento di Istituto prevedano l’irrogazione di sanzioni
+studenti, nonché il regolamento di Istituto, prevedano l’irrogazione di sanzioni
 disciplinari che comportino l’allontanamento temporaneo dello studente dalla
 comunità scolastica per periodi superiori a 15 giorni e qualora lo studente non
 abbia dimostrato apprezzabili e concreti cambiamenti nel comportamento, tali da
@@ -1358,8 +1283,8 @@ pur essendo stata informata la famiglia,\\n
 considerata la scarsa partecipazione al dialogo educativo e la mancanza di impegno nello studio mostrata nel corso dell’anno scolastico,\\n
 non ha raggiunto gli obiettivi minimi per un numero eccessivo di discipline e non possiede competenze e conoscenze adeguate per affrontare {classe}."
 message.giudizio_non_ammissione_invalsi: "L'alunn{sex} non ha svolto i test INVALSI come previsto per l'ammissione all'Esame di Stato."
-message.giudizio_non_ammissione_pcto: "L'alunn{sex} non ha svolto il numero minimo di ore di FSL previsto per l'ammissione all'Esame di Stato."
-message.giudizio_non_ammissione_invalsi_pcto: "L'alunn{sex} non ha svolto il numero minimo di ore di FSL e i test INVALSI, come previsto per l'ammissione all'Esame di Stato."
+message.giudizio_non_ammissione_pcto: "L'alunn{sex} non ha svolto il numero minimo di ore di PCTO previsto per l'ammissione all'Esame di Stato."
+message.giudizio_non_ammissione_invalsi_pcto: "L'alunn{sex} non ha svolto il numero minimo di ore di PCTO e i test INVALSI, come previsto per l'ammissione all'Esame di Stato."
 message.giudizio_non_ammissione_sospeso: "L'alunn{sex},\\n
 con giudizio sospeso nello scrutinio finale di giugno,\\n
 benché siano stati segnalati alla famiglia i relativi debiti formativi,\\n
@@ -1528,14 +1453,12 @@ message.avviso_disattiva_log_level: "Attenzione: l'operazione disattiverà la mo
 message.modifica_log_level_ok: La modalità di debug è stata modificata.
 message.tutte_operazioni_ok: Tutte le operazioni sono state eseguite senza errori.
 message.cancella_modulo: Verrà cancellato il modulo indicato. Vuoi continuare?
-message.cancella_consultazione: Verrà cancellata la consultazione indicata. Vuoi continuare?
 message.no_moduli_richieste: Non sono presenti moduli di richiesta per l'utente.
 message.no_moduli_classe: Non sono presenti moduli per la classe.
-message.richieste_add: Inserisci i dati nel modulo e conferma l'invio.
+message.richieste_add: Inserisci i dati nel modulo di richiesta e conferma l'invio.
 message.modulo_add: Inserisci i dati nel modulo e conferma l'invio.
 message.richieste_classe_add: Inserisci i dati nel modulo e conferma l'invio.
 message.cancella_richiesta: Verrà cancellata la richiesta inviata. Vuoi continuare?
-message.cancella_risposta: Verrà cancellata la risposta inviata. Vuoi continuare?
 message.richieste_remove: La richiesta sarà segnata come rimossa. Puoi inserire un messaggio di risposta che sarà visualizzato dall'utente che ha effettuato la richiesta.
 message.richieste_manage: La richiesta sarà segnata come gestita. Puoi inserire un messaggio di risposta che sarà visualizzato dall'utente che ha effettuato la richiesta.
 message.edit_ricevimento_singolo: Inserisci le impostazioni per il ricevimento dei genitori.
@@ -1577,11 +1500,6 @@ message.lezione_sostegno_NA_con_religione: "Non è possibile firmare la lezione 
 message.lezione_incompatibile: "Non è possibile firmare la lezione della {ora}ª ora.<br>La materia o il gruppo è incompatibile con la lezione esistente."
 message.cattedra_esistente_non_creata: Alcune cattedre non sono state inserite perché risultano già esistenti.
 message.comunicazione_cittadinanza: "L'elaborato dovrà essere trasmesso alla scuola in formato PDF e inviato tramite email all'indirizzo ..., indicando come oggetto 'ELABORATO CITTADINANZA ATTIVA - CLASSE - COGNOME NOME', entro e non oltre il giorno ..."
-message.autorizzazioni_edit: Inserisci tutti i dati richiesti per il modulo di autorizzazione dell'attività
-message.autorizzazioni_autorizza: Leggi i dettagli dell'attività e invia l'autorizzazione
-message.sistema_spid: Per configurare l'accesso SPID/CIE che utilizza il gateway delle identità del MIM, inserisci il codice del client e il codice segreto che è stato configurato attraverso il portale SIDI (aggregazione scuole).
-message.modifica_modulo_formativo_dopo_scrutinio: Non è possibile modificare i moduli formativi.
-
 
 
 ##### ERRORI #####
@@ -1815,9 +1733,6 @@ exception.no_firma_dichiarazione: "Errore: devi sottoscrivere la dichiarazione."
 exception.dichiarazione_incompleta: "Errore: devi compilare la dichiarazione e sottoscriverla."
 exception.data_invalida: "Errore: data non valida. Devi inserire una data nel formato gg/mm/aaaa."
 exception.colloquio_ora_invalida: Non hai inserito l'orario dell'appuntamento.
-exception.colloquio_ora_incongruente: L'orario finale non è successivo a quello iniziale.
-exception.colloquio_ora_inizio_invalida: L'ora iniziale è precedente all'inizio delle lezioni
-exception.colloquio_ora_fine_invalida: L'ora finale è successiva alla fine delle lezioni
 exception.colloquio_data_invalida: La data inserita non è valida.
 exception.numero_file_allegati: Hai caricato un numero eccessivo di documenti.
 exception.documento_alunno_mancante: Non hai indicato l'alunno a cui è riferito il documento.
@@ -1895,18 +1810,3 @@ exception.docente_supplenza_errato: Il docente sostituito è identico a chi lo s
 exception.lista_cattedre_vuota: La lista delle classi/materie per la supplenza è vuota
 exception.documento_bes_non_autorizzato: Non hai i permessi per caricare documenti BES dell'alunno selezionato
 exception.tipo_filtro_invalido: Il tipo di filtro non è valido
-exception.consultazione_intervallo_date_invalido: La data e ora iniziale deve precedere quella finale
-exception.consultazione_nessuna_classe: Devi indicare almeno una classe di destinazione
-exception.impossibile_creare_zip: Impossibile creare il file compresso
-exception.autorizzazione_intervallo_date_invalido: L'ora iniziale deve precedere quella finale
-exception.autorizzazione_nessuna_classe: Devi indicare almeno una classe di destinazione
-exception.autorizzazione_no_descrizione: Devi indicare la descrizione dell'attività
-exception.autorizzazione_no_luogo_sede: Devi indicare la sede di svolgimento dell'attività
-exception.autorizzazione_no_luogo_aula: Devi indicare l'aula o l'ambiente di svolgimento dell'attività
-exception.autorizzazione_no_destinazione: Devi indicare la destinazione dell'uscita didattica o visita guidata
-exception.autorizzazione_no_svolgimento: Devi indicare la modalità di svolgimento dell'uscita didattica o visita guidata
-exception.autorizzazione_no_accompagnatori: Devi indicare gli accompagnatori dell'uscita didattica o visita guidata
-exception.autorizzazione_no_partenza: Devi indicare il luogo di partenza per l'uscita didattica o visita guidata
-exception.autorizzazione_no_rientro: Devi indicare la modalità di rientro dall'uscita didattica o visita guidata
-exception.pdf_import: Impossibile importare il file PDF
-exception.spid_no_client_secret: Devi inserire sia il codice del client che il codice segreto.

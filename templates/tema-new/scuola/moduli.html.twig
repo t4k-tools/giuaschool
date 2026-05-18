@@ -19,13 +19,13 @@
         <tr{% if not m.abilitata %} class="table-danger"{% endif %}>
           <td>
     {% if m.abilitata %}
-            <span title="{{ 'label.stato_abilitato'|trans }}">
+            <span title="{{ 'label.utente_attivo'|trans }}">
               <svg class="icon icon-xs icon-success" aria-hidden="true">
                 <use xlink:href="{{ asset('vendor/fontawesome/sprites/solid.svg') }}#check"></use>
               </svg>
             </span>
     {% else %}
-            <span title="{{ 'label.stato_disabilitato'|trans }}">
+            <span title="{{ 'label.utente_disabilitato'|trans }}">
               <svg class="icon icon-sm icon-danger" aria-hidden="true">
                 <use xlink:href="{{ asset('vendor/fontawesome/sprites/solid.svg') }}#ban"></use>
               </svg>

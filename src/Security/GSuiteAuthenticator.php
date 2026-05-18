@@ -16,6 +16,7 @@ use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -59,7 +60,9 @@ class GSuiteAuthenticator extends OAuth2Authenticator {
       private LoggerInterface $logger,
       private LogHandler $dblogger,
       private ConfigLoader $config,
-      private ClientRegistry $clientRegistry) {
+      private ClientRegistry $clientRegistry,
+      private JWTTokenManagerInterface $jwtManager,
+      private string $nextjsUrl = '') {
   }
 
   /**
@@ -143,30 +146,30 @@ class GSuiteAuthenticator extends OAuth2Authenticator {
    * @return Response|null Pagina di risposta o null per continuare la richiesta come utente autenticato
    */
   public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response {
-    // url di destinazione: homepage (necessario un punto di ingresso comune)
-    $url = $this->router->generate('login_home');
-    // tipo di login
-    $request->getSession()->set('/APP/UTENTE/tipo_accesso', 'Google');
-    // controlla presenza altri profili
-    if (empty($token->getUser()->getListaProfili())) {
-      // non sono presenti altri profili: imposta ultimo accesso dell'utente
-      $accesso = $token->getUser()->getUltimoAccesso();
+    $user = $token->getUser();
+    // imposta ultimo accesso
+    if (empty($user->getListaProfili())) {
+      $accesso = $user->getUltimoAccesso();
       $request->getSession()->set('/APP/UTENTE/ultimo_accesso', ($accesso ? $accesso->format('d/m/Y H:i:s') : null));
-      $token->getUser()->setUltimoAccesso(new DateTime());
+      $user->setUltimoAccesso(new DateTime());
     } else {
-      // sono presenti altri profili: li memorizza in sessione
-      $request->getSession()->set('/APP/UTENTE/lista_profili', $token->getUser()->getListaProfili());
+      $request->getSession()->set('/APP/UTENTE/lista_profili', $user->getListaProfili());
     }
     // log azione
     $this->dblogger->logAzione('ACCESSO', 'Login', [
       'Login' => 'Google',
-      'Username' => $token->getUser()->getUserIdentifier(),
-      'Ruolo' => $token->getUser()->getRoles()[0],
-      'Lista profili' => $token->getUser()->getListaProfili()]);
-    // carica configurazione
+      'Username' => $user->getUserIdentifier(),
+      'Ruolo' => $user->getRoles()[0],
+      'Lista profili' => $user->getListaProfili()]);
     $this->config->carica();
-    // redirect alla pagina da visualizzare
-    return new RedirectResponse($url);
+    // handoff JWT al frontend Next.js
+    if ($this->nextjsUrl) {
+      $jwt = $this->jwtManager->create($user);
+      return new RedirectResponse($this->nextjsUrl . '/auth/callback?token=' . urlencode($jwt));
+    }
+    // fallback: redirect legacy
+    $request->getSession()->set('/APP/UTENTE/tipo_accesso', 'Google');
+    return new RedirectResponse($this->router->generate('login_home'));
   }
 
   /**
@@ -177,10 +180,11 @@ class GSuiteAuthenticator extends OAuth2Authenticator {
    *
    * @return Response|null Pagina di risposta o null per continuare la richiesta della pagina senza autenticazione
    */
-   public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response {
-    // messaggio di errore
+  public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response {
+    if ($this->nextjsUrl) {
+      return new RedirectResponse($this->nextjsUrl . '/login?error=google');
+    }
     $request->getSession()->set(SecurityRequestAttributes::AUTHENTICATION_ERROR, $exception);
-    // redirect alla pagina di login
     return new RedirectResponse($this->router->generate('login_form'));
   }
 

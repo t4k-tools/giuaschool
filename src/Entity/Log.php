@@ -42,9 +42,9 @@ class Log implements Stringable {
   private DateTime $creato;
 
   /**
-   * @var Utente|null $utente Utente connesso (può esssere null se la pagina è pubblica)
+   * @var Utente|null $utente Utente connesso
    */
-  #[ORM\JoinColumn(nullable: true)]
+  #[ORM\JoinColumn(nullable: false)]
   #[ORM\ManyToOne(targetEntity: Utente::class)]
   private ?Utente $utente = null;
 
@@ -136,7 +136,7 @@ class Log implements Stringable {
   }
 
   /**
-   * Restituisce l'utente connesso (può esssere null se la pagina è pubblica)
+   * Restituisce l'utente connesso
    *
    * @return Utente|null Utente connesso
    */
@@ -145,13 +145,13 @@ class Log implements Stringable {
   }
 
   /**
-   * Modifica l'utente connesso (può esssere null se la pagina è pubblica)
+   * Modifica l'utente connesso
    *
-   * @param Utente|null $utente Utente connesso
+   * @param Utente $utente Utente connesso
    *
    * @return self Oggetto modificato
    */
-  public function setUtente(?Utente $utente): self {
+  public function setUtente(Utente $utente): self {
     $this->utente = $utente;
     return $this;
   }

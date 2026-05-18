@@ -75,7 +75,7 @@
               <div class="text-right gs-text-normal"><em>({{ a.avviso.autore }})</em></div>
             </div>
       {% if a.avviso.allegati|length > 0 %}
-            <div class="alert alert-success gs-mt-2 gs-mb-0 gs-pt-2 gs-pb-2 gs-pr-2 gs-pl-2">
+            <div class="gs-mt-2">
         {% for n,f in a.avviso.allegati %}
               <div class="gs-mt-3 gs-mb-3">
                 <strong>Allegato {{ n+1 }}:</strong> {{ f.titolo }}
@@ -85,15 +85,10 @@
         {% endfor %}
             </div>
       {% endif %}
-            <div class="gs-mt-1 gs-pt-1 gs-pb-3">
+            <div class="gs-mt-2 gs-pt-3 gs-pb-3 gs-bg-secondary" style="border-radius:4px;">
               <div class="gs-pl-2 gs-pr-2">
                 <strong>Sede:</strong>
                 {% for s in a.avviso.sedi %}{{ s.nomeBreve|upper }}{{ not loop.last ? ', ' }}{% endfor %}
-      {% if dati.classi[k]|length > 0 %}
-                <br>
-                <strong>Classi:</strong>
-                {% for c in dati.classi[k] %}{{ c }}{{ not loop.last ? ', ' }}{% endfor %}
-      {% endif %}
               </div>
               <div class="gs-pl-2 gs-pr-2">
                 <strong>Tipo:</strong>
@@ -112,41 +107,6 @@
                 <strong>Data e ora di lettura:</strong>
                 {{ a.letto ? a.letto|date('d/m/Y H:i') : 'Adesso' }}
               </div>
-      {% if (dati.statistiche[k].genitori is defined) or (dati.statistiche[k].alunni is defined) %}
-              <div class="gs-pl-2 gs-pr-2 gs-mt-3">
-                <strong>Statistiche di lettura:</strong>
-        {% if dati.statistiche[k].genitori is defined %}
-                <div class="row gs-ml-4 gs-mr-2 gs-pt-1 gs-pb-1" style="border-bottom: 1px solid #ccc">
-                  <div class="col-sm-8 gs-pl-0">Genitori: {{ dati.statistiche[k].genitori.percentuale|number_format(0) }}% ({{ dati.statistiche[k].genitori.letti }} su {{ dati.statistiche[k].genitori.totali }})</div>
-                </div>
-          {% if dati.statistiche[k].genitori.letti > 0 %}
-                <div class="bg-success gs-ml-5 gs-mr-2 gs-pr-2 gs-pl-2">
-            {% for u in dati.statistiche[k].genitori.elenco %}
-                  <div class="row">
-                    <div class="col-sm-8">{{ u.anno }}{{ u.sezione }}{{ u.gruppo ? '-'~u.gruppo }} - {{ u.cognome }} {{ u.nome }} ({{ u.cognome_gen == '#NESSUN DATO#' ? '--' : u.cognome_gen }} {{ u.nome_gen == '#NESSUN DATO#' ? '--' : u.nome_gen }})</div>
-                    <div class="col-sm-4 text-right">{{ u.letto|date('d/m/Y H:i') }}</div>
-                  </div>
-            {% endfor %}
-                </div>
-          {% endif %}
-        {% endif %}
-        {% if dati.statistiche[k].alunni is defined %}
-                <div class="row gs-ml-4 gs-mr-2 gs-pt-1 gs-pb-1" style="border-bottom: 1px solid #ccc">
-                  <div class="col-sm-8 gs-pl-0">Alunni: {{ dati.statistiche[k].alunni.percentuale|number_format(0) }}% ({{ dati.statistiche[k].alunni.letti }} su {{ dati.statistiche[k].alunni.totali }})</div>
-                </div>
-          {% if dati.statistiche[k].alunni.letti > 0 %}
-                <div class="bg-success gs-ml-5 gs-mr-2 gs-pr-2 gs-pl-2">
-            {% for u in dati.statistiche[k].alunni.elenco %}
-                  <div class="row">
-                    <div class="col-sm-8">{{ u.anno }}{{ u.sezione }}{{ u.gruppo ? '-'~u.gruppo }} - {{ u.cognome }} {{ u.nome }}</div>
-                    <div class="col-sm-4 text-right">{{ u.letto|date('d/m/Y H:i') }}</div>
-                  </div>
-            {% endfor %}
-                </div>
-          {% endif %}
-        {% endif %}
-              </div>
-      {% endif %}
             </div>
           </div>
         </td>
@@ -182,11 +142,10 @@ $(document).ready(function() {
     $('#gs-modal-waiting').modal('show');
   });
   $('#gs-modal-info').on('show.bs.modal', function (e) {
-    $.get("{{ path('avvisi_legge') }}/"+$(e.relatedTarget).data('info-id'));
+    $.get("/avvisi/legge/"+$(e.relatedTarget).data('info-id'), 'json');
     $(e.relatedTarget).data('info-title');
     var title = $(e.relatedTarget).data('info-date')+'<br><em class="gs-small">'+$(e.relatedTarget).data('info-title')+'</em>';
     var id = $(e.relatedTarget).data('body');
-    var stato = $('#'+id).parent().parent().children(':first').html('<span class="label label-default">LETTO</span>');
     var html = $('#'+id).html();
     $(this).find('#gs-modal-info-label').html(title);
     $(this).find('#gs-modal-info-body').html(html);

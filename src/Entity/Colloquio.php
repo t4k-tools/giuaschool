@@ -52,19 +52,13 @@ class Colloquio implements Stringable {
 
   /**
    * @var Docente|null $docente Docente che deve fare il colloquio
+   *
+   *
    */
   #[ORM\JoinColumn(nullable: false)]
   #[ORM\ManyToOne(targetEntity: \Docente::class)]
   #[Assert\NotBlank(message: 'field.notblank')]
   private ?Docente $docente = null;
-
-  /**
-   * @var Sede|null $sede Sede relativa al colloquio
-   */
-  #[ORM\JoinColumn(nullable: true)]
-  #[ORM\ManyToOne(targetEntity: \Sede::class)]
-  #[Assert\NotBlank(message: 'field.notblank')]
-  private ?Sede $sede = null;
 
   /**
    * @var DateTimeInterface|null $data Data del colloquio
@@ -92,6 +86,8 @@ class Colloquio implements Stringable {
 
   /**
    * @var string $tipo Tipo di colloquio [D=a distanza, P=in presenza]
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 1, nullable: false)]
   #[Assert\Choice(choices: ['D', 'P'], strict: true, message: 'field.choice')]
@@ -99,6 +95,8 @@ class Colloquio implements Stringable {
 
   /**
    * @var string|null $luogo Indicazione del luogo di svolgimento del colloquio (aula o link)
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 2048, nullable: true)]
   #[Assert\Length(max: 2048, maxMessage: 'field.maxlength')]
@@ -124,7 +122,6 @@ class Colloquio implements Stringable {
 
 
   //==================== EVENTI ORM ====================
-
   /**
    * Simula un trigger onCreate
    */
@@ -192,27 +189,6 @@ class Colloquio implements Stringable {
    */
   public function setDocente(Docente $docente): self {
     $this->docente = $docente;
-    return $this;
-  }
-
-  /**
-   * Restituisce la sede relativa al colloquio
-   *
-   * @return Sede|null Sede relativa al colloquio
-   */
-  public function getSede(): ?Sede {
-    return $this->sede;
-  }
-
-  /**
-   * Modifica la sede relativa al colloquio
-   *
-   * @param Sede $Sede Sede relativa al colloquio
-   *
-   * @return self Oggetto modificato
-   */
-  public function setSede(Sede $sede): self {
-    $this->sede = $sede;
     return $this;
   }
 

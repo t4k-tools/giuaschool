@@ -13,7 +13,6 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
-use Symfony\Component\Form\Extension\Core\Type\TimeType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -52,16 +51,12 @@ class ColloquioType extends AbstractType {
         ->add('sede', ChoiceType::class, ['label' => 'label.sede',
           'choices' => $options['values'][0],
           'choice_translation_domain' => false,
+          'mapped' => false,
           'required' => true])
-        ->add('inizio', TimeType::class, ['label' => 'label.inizio',
-          'widget' => 'single_text',
-          'html5' => false,
-          'attr' => ['widget' => 'gs-picker'],
-          'required' => true])
-        ->add('fine', TimeType::class, ['label' => 'label.fine',
-          'widget' => 'single_text',
-          'html5' => false,
-          'attr' => ['widget' => 'gs-picker'],
+        ->add('ora', ChoiceType::class, ['label' => 'label.ora',
+          'choices' => $options['values'][1],
+          'mapped' => false,
+          'choice_translation_domain' => false,
           'required' => true])
         ->add('luogo', TextType::class, ['label' => 'label.colloquio_luogo',
           'required' => true]);
@@ -70,6 +65,7 @@ class ColloquioType extends AbstractType {
       $builder
         ->add('tipo', ChoiceType::class, ['label' => 'label.tipo',
 					'choices' => ['label.tipo_colloquio_P' => 'P', 'label.tipo_colloquio_D' => 'D'],
+					'mapped' => false,
 					'required' => true])
         ->add('frequenza', ChoiceType::class, ['label' => 'label.frequenza',
 					'choices' => ['label.ogni_settimana' => 'S', 'label.prima_settimana' => '1',
@@ -78,29 +74,28 @@ class ColloquioType extends AbstractType {
 					'mapped' => false,
 					'required' => true])
         ->add('durata', ChoiceType::class, ['label' => 'label.durata',
+					'data' => 10,
 					'choices' => ['label.durata_colloquio_5' => 5, 'label.durata_colloquio_10' => 10,
 						'label.durata_colloquio_15' => 15],
+					'mapped' => false,
 					'required' => true])
         ->add('sede', ChoiceType::class, ['label' => 'label.sede',
 					'choices' => $options['values'][0],
 					'choice_translation_domain' => false,
+					'mapped' => false,
 					'required' => true])
         ->add('giorno', ChoiceType::class, ['label' => 'label.giorno',
 					'choices' => ['label.lunedi' => '1', 'label.martedi' => '2',  'label.mercoledi' => '3',
 						'label.giovedi' => '4', 'label.venerdi' => '5',  'label.sabato' => '6'],
 					'mapped' => false,
 					'required' => true])
-        ->add('inizio', TimeType::class, ['label' => 'label.inizio',
-          'widget' => 'single_text',
-          'html5' => false,
-          'attr' => ['widget' => 'gs-picker'],
-          'required' => true])
-        ->add('fine', TimeType::class, ['label' => 'label.fine',
-          'widget' => 'single_text',
-          'html5' => false,
-          'attr' => ['widget' => 'gs-picker'],
-          'required' => true])
+        ->add('ora', ChoiceType::class, ['label' => 'label.ora',
+					'choices' => $options['values'][1],
+					'mapped' => false,
+					'choice_translation_domain' => false,
+					'required' => true])
         ->add('luogo', TextType::class, ['label' => 'label.colloquio_luogo',
+					'mapped' => false,
 					'required' => true]);
     }
   }

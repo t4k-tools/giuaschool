@@ -43,7 +43,7 @@ class DefinizioneRichiestaType extends AbstractType {
       ->add('sede', ChoiceType::class, ['label' => 'label.sede',
         'choices' => $options['values'][0],
         'choice_value' => 'id',
-        'placeholder' => 'label.qualsiasi_sede',
+        'placeholder' => 'label.choose_option',
         'choice_translation_domain' => false,
         'attr' => ['widget' => 'gs-row-end'],
         'required' => false])

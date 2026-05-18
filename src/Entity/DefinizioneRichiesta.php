@@ -21,21 +21,18 @@ use Symfony\Component\Validator\Constraints as Assert;
 /**
  * DefinizioneRichiesta - dati per la definizione dei moduli di richiesta
  *
+ *
+ *
  * @author Antonello Dessì
  */
 #[ORM\Table(name: 'gs_definizione_richiesta')]
 #[ORM\Entity(repositoryClass: DefinizioneRichiestaRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[UniqueEntity(fields: 'nome', message: 'field.unique')]
-#[ORM\InheritanceType('SINGLE_TABLE')]
-#[ORM\DiscriminatorColumn(name: 'categoria', type: 'string', length: 1)]
-#[ORM\DiscriminatorMap(['R' => 'DefinizioneRichiesta', 'C' => 'DefinizioneConsultazione', 'A' => 'DefinizioneAutorizzazione'])]
-#[ORM\Index(columns: ['categoria'])]
 class DefinizioneRichiesta implements Stringable {
 
 
   //==================== ATTRIBUTI DELLA CLASSE  ====================
-
   /**
    * @var int|null $id Identificatore univoco
    */
@@ -58,6 +55,8 @@ class DefinizioneRichiesta implements Stringable {
 
   /**
    * @var string $nome Nome univoco della richiesta
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 128, unique: true, nullable: false)]
   #[Assert\NotBlank(message: 'field.notblank')]
@@ -73,8 +72,9 @@ class DefinizioneRichiesta implements Stringable {
 
   /**
    * @var string $richiedenti Lista dei ruoli degli utenti autorizzati a inviare la richiesta
-   *
    * Si usa una lista separata da virgole: ogni elemento è una coppia di codici per ruolo e funzione dell'utente
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 16, nullable: false)]
   #[Assert\NotBlank(message: 'field.notblank')]
@@ -83,8 +83,9 @@ class DefinizioneRichiesta implements Stringable {
 
   /**
    * @var string $destinatari Lista dei ruoli degli utenti autorizzati a gestire la richiesta
-   *
    * Si usa una lista separata da virgole: ogni elemento è una coppia di codici per ruolo e funzione dell'utente
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 16, nullable: false)]
   #[Assert\NotBlank(message: 'field.notblank')]
@@ -93,6 +94,8 @@ class DefinizioneRichiesta implements Stringable {
 
   /**
    * @var string $modulo Nome del file del modulo di richiesta da compilare da parte del richiedente
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 128, nullable: false)]
   #[Assert\NotBlank(message: 'field.notblank')]
@@ -107,6 +110,8 @@ class DefinizioneRichiesta implements Stringable {
 
   /**
    * @var int $allegati Numero di allegati da inserire nella richiesta
+   *
+   *
    */
   #[ORM\Column(type: Types::SMALLINT, nullable: false)]
   #[Assert\PositiveOrZero(message: 'field.zeropositive')]
@@ -114,6 +119,8 @@ class DefinizioneRichiesta implements Stringable {
 
   /**
    * @var string $tipo Codifica del tipo di richiesta
+   *
+   *
    */
   #[ORM\Column(type: Types::STRING, length: 1, nullable: false)]
   #[Assert\NotBlank(message: 'field.notblank')]
@@ -140,7 +147,6 @@ class DefinizioneRichiesta implements Stringable {
 
 
   //==================== EVENTI ORM ====================
-
   /**
    * Simula un trigger onCreate
    */

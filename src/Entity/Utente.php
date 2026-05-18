@@ -234,16 +234,16 @@ class Utente implements UserInterface, PasswordAuthenticatedUserInterface, Strin
   private ?array $notifica = ['tipo' => 'email', 'abilitato' => ['circolare']];
 
   /**
+   * @var string|null $fotoUrl URL della foto tessera dell'utente
+   */
+  #[ORM\Column(name: 'foto_url', type: Types::STRING, length: 2048, nullable: true)]
+  private ?string $fotoUrl = null;
+
+  /**
    * @var array|null $rappresentante Indica se l'utente è eletto come rappresentante [I=di istituto, P=consulta provinciale, R=RSU, L=genitori rappresentanti di classe, S=alunni rappresentanti di classe]
    */
   #[ORM\Column(type: Types::SIMPLE_ARRAY, nullable: true)]
   private ?array $rappresentante = [''];
-
-  /**
-   * @var array|null $dati Lista di informazioni per la gestione dell'utente
-   */
-  #[ORM\Column(type: Types::JSON, nullable: false)]
-  private ?array $dati = [];
 
   /**
    * @var array|null $listaProfili Lista di profili per lo stesso utente (dato non persistente)
@@ -947,23 +947,23 @@ class Utente implements UserInterface, PasswordAuthenticatedUserInterface, Strin
   }
 
   /**
-   * Restituisce la lista di informazioni per la gestione dell'utente
+   * Restituisce l'URL della foto tessera dell'utente
    *
-   * @return array|null Lista di informazioni per la gestione dell'utente
+   * @return string|null URL della foto
    */
-  public function getDati(): ?array {
-    return $this->dati;
+  public function getFotoUrl(): ?string {
+    return $this->fotoUrl;
   }
 
   /**
-   * Modifica la lista di informazioni per la gestione dell'utente
+   * Modifica l'URL della foto tessera dell'utente
    *
-   * @param array $dati Lista di informazioni per la gestione dell'utente
+   * @param string|null $fotoUrl URL della foto
    *
    * @return self Oggetto modificato
    */
-  public function setDati(array $dati): self {
-    $this->dati = $dati;
+  public function setFotoUrl(?string $fotoUrl): self {
+    $this->fotoUrl = $fotoUrl ?: null;
     return $this;
   }
 

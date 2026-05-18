@@ -18,7 +18,6 @@ use App\Entity\Classe;
 use App\Entity\Colloquio;
 use App\Entity\Docente;
 use App\Entity\Genitore;
-use App\Entity\Sede;
 use App\Util\LogHandler;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -66,7 +65,7 @@ class ColloquiUtil {
    *  @return string|null Avviso su colloqui duplicati o null se tutto ok
    */
   public function generaDate(Docente $docente, string $tipo, string $frequenza, int $durata, int $giorno,
-                             DateTime $inizio, DateTime $fine, string $luogo, Sede $sede): ?string {
+                             DateTime $inizio, DateTime $fine, string $luogo): ?string {
     // inizializza
     $week = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     $avviso = null;
@@ -138,8 +137,7 @@ class ColloquiUtil {
           ->setInizio($inizio)
           ->setFine($fine)
           ->setDurata($durata)
-          ->setLuogo($luogo)
-          ->setSede($sede);
+          ->setLuogo($luogo);
         $colloquio->setNumero($this->numeroColloqui($colloquio));
         $this->em->persist($colloquio);
         // controlla se esite già
@@ -199,15 +197,14 @@ class ColloquiUtil {
    * Restituisce i dati dei ricevimenti (validi) del docente
    *
    * @param Docente $docente Docente di cui restituire le date di ricevimento
-   * @param Sede $sede Sede della classe dell'alunno
    *
    * @return array Dati restituiti come array associativo
    */
-  public function dateRicevimento(Docente $docente, Sede $sede): array {
+  public function dateRicevimento(Docente $docente): array {
     // legge date valide di ricevimento
     $inizio = new DateTime('tomorrow');
     $fine = (clone $inizio)->modify('last day of next month');
-    $ricevimenti = $this->em->getRepository(Colloquio::class)->ricevimenti($docente, $sede, $inizio, $fine, true);
+    $ricevimenti = $this->em->getRepository(Colloquio::class)->ricevimenti($docente, $inizio, $fine, true);
     $dati['validi'] = [];
     $dati['esauriti'] = [];
     foreach ($ricevimenti as $ricevimento) {
@@ -219,7 +216,7 @@ class ColloquiUtil {
     }
     // legge date prossimi ricevimenti
     $fine->modify('+1 day');
-    $dati['prossimi'] = $this->em->getRepository(Colloquio::class)->ricevimenti($docente, $sede, $fine, null, true);
+    $dati['prossimi'] = $this->em->getRepository(Colloquio::class)->ricevimenti($docente, $fine, null, true);
     // crea lista per form
     $dati['lista'] = [];
     $formatter = new IntlDateFormatter('it_IT', IntlDateFormatter::SHORT, IntlDateFormatter::SHORT);

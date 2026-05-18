@@ -90,6 +90,15 @@ class LoginController extends BaseController {
   }
 
   /**
+   * Alias legacy per URL storici della home.
+   */
+  #[Route(path: '/index', name: 'login_home_legacy_no_slash', methods: ['GET'])]
+  #[Route(path: '/index/', name: 'login_home_legacy', methods: ['GET'])]
+  public function legacyHome(): Response {
+    return $this->redirectToRoute('login_home');
+  }
+
+  /**
    * Home page
    *
    * @param Request $request Pagina richiesta

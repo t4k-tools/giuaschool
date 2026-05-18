@@ -1,3 +1,5 @@
+name: registro
+
 services:
   app:
     build:
@@ -7,7 +9,7 @@ services:
     ports:
       - "${REGISTRO_BACKEND_PORT:-8082}:80"
     volumes:
-      - ./src:/var/www/html
+      - .:/var/www/html
     depends_on:
       db:
         condition: service_healthy
@@ -64,8 +66,8 @@ services:
       MYSQL_PASSWORD: giuaschool
     volumes:
       - registro_db_data:/var/lib/mysql
-      - ./src/src/Install/create-db.sql:/docker-entrypoint-initdb.d/10-create-db.sql:ro
-      - ./src/src/Install/init-db.sql:/docker-entrypoint-initdb.d/20-init-db.sql:ro
+      - ./src/Install/create-db.sql:/docker-entrypoint-initdb.d/10-create-db.sql:ro
+      - ./src/Install/init-db.sql:/docker-entrypoint-initdb.d/20-init-db.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s

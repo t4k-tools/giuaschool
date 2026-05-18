@@ -88,6 +88,8 @@ Thumbs.db
 # Cloudflare Tunnel credentials (file UUID.json + config.yml)
 /config.yml
 /[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.json
+/docker/cloudflared/config.yml
+/docker/cloudflared/*.json
 
 # Backup DB dentro Docs
 /Docs/*.sql

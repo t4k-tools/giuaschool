@@ -26,8 +26,17 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
 });
 
+/*
+ * Branding multi-scuola.
+ * NEXT_PUBLIC_BRAND       — chiave del tema CSS in src/themes/<brand>.css (default: "aciief")
+ * NEXT_PUBLIC_BRAND_NAME  — nome scuola mostrato nel <title> (default: "ACIIEF")
+ * Per aggiungere una scuola vedi Docs/CAMBIO-THEMA.md
+ */
+const BRAND = process.env.NEXT_PUBLIC_BRAND ?? "aciief";
+const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME ?? "ACIIEF";
+
 export const metadata: Metadata = {
-  title: "Registro Elettronico - ACIIEF",
+  title: `Registro Elettronico - ${BRAND_NAME}`,
   description: "Registro elettronico scolastico - giua@school",
 };
 
@@ -37,7 +46,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="it">
+    <html lang="it" data-theme={BRAND}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} ${dmSans.variable} antialiased`}
       >

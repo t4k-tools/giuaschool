@@ -40,6 +40,7 @@ label.attivita: Attività
 label.autore: Autore
 label.autorizza_entrata: Autorizzazione ritardo
 label.autorizza_uscita: Autorizzazione uscita
+label.backup_eseguito: Confermo di aver eseguito il backup completo del database e dei file
 label.bes_B: Bisogni educativi speciali
 label.bes_D: Certificazione DSA
 label.bes_H: Sostegno
@@ -1375,6 +1376,7 @@ message.password: "Inserisci la username e la password (due volte).<br>
   I campi contrassegnati con l'asterisco (*) sono obbligatori."
 message.alias: "Inserisci la username dell'utente che vuoi impersonare.<br>
   I campi contrassegnati con l'asterisco (*) sono obbligatori."
+message.nuovo_anno_backup: "Prima di iniziare esegui il backup del database. Comando pronto per questo ambiente:"
 message.nuovo_anno_0: "<strong>Prima di procedere, assicurati di avere effettuato le seguenti operazioni:<br>
   1) archiviazione di tutti i documenti, perché saranno cancellati;<br>
   2) backup completo (file e database), per poter effettuare il ripristino in caso di problemi;<br>
@@ -1612,6 +1614,8 @@ exception.no_recupero_scrutinio: "<strong>{materia}</strong>: manca la modalità
 exception.nota_con_nome: Il testo della nota non può contenere i nomi degli alunni ({nome})
 exception.not_allowed: Azione richiesta non permessa.
 exception.notifica_non_permessa: Spiacente non puoi aggiungere o modificare una notifica al genitore.
+exception.nuovo_anno_backup: "La procedura non può iniziare: devi prima confermare di aver eseguito il backup del database."
+exception.nuovo_anno_prerequisiti: "Prerequisito mancante, procedura annullata senza modifiche al database: {errore}"
 exception.no_voto_esito: Mancano uno o più voti per l'esito dell'alunn{sex} {alunno}.
 exception.no_voto: Manca il voto per uno o più alunni.
 exception.no_voto_scrutinio: "<strong>{materia}</strong>: manca il voto per uno o più alunni."

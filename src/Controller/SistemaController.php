@@ -21,12 +21,15 @@ use App\Entity\Cattedra;
 use App\Entity\VotoScrutinio;
 use App\Entity\CambioClasse;
 use App\Entity\Circolare;
-use App\Entity\CircolareUtente;
 use App\Entity\Avviso;
-use App\Entity\AvvisoUtente;
 use App\Entity\Preside;
 use App\Entity\Documento;
+use App\Entity\Comunicazione;
+use App\Entity\ComunicazioneClasse;
+use App\Entity\ComunicazioneUtente;
+use App\Entity\Allegato;
 use Exception;
+use Psr\Log\LoggerInterface;
 use App\Entity\Alunno;
 use App\Entity\DefinizioneScrutinio;
 use App\Entity\Docente;
@@ -334,6 +337,7 @@ class SistemaController extends BaseController {
    * @param Request $request Pagina richiesta
    * @param TranslatorInterface $trans Gestore delle traduzioni
    * @param KernelInterface $kernel Gestore delle funzionalità http del kernel
+   * @param LoggerInterface $logger Gestore dei log su file
    * @param int $step Passo della procedura
    *
    * @return Response Pagina di risposta
@@ -342,14 +346,23 @@ class SistemaController extends BaseController {
   #[Route(path: '/sistema/nuovo/{step}', name: 'sistema_nuovo', requirements: ['step' => '\d+'], defaults: ['step' => '0'], methods: ['GET', 'POST'])]
   #[IsGranted('ROLE_AMMINISTRATORE')]
   public function nuovo(Request $request, TranslatorInterface $trans, KernelInterface $kernel,
-                        int $step): Response {
+                        LoggerInterface $logger, int $step): Response {
     // init
     $dati = [];
     $info = [];
     $info['nuovoAnno'] = (int) (new DateTime())->format('Y');
     $info['vecchioAnno'] = $info['nuovoAnno'] - 1;
-    // form
+    $info['step'] = $step;
+    // ready-to-copy backup command for this environment, shown on the start page
+    $parametri = $this->em->getConnection()->getParams();
+    $info['backupCmd'] = sprintf(
+      'mysqldump -h %s -P %d -u %s -p --single-transaction --routines --triggers %s > backup-pre-nuovo-anno-%d.sql',
+      $parametri['host'] ?? 'localhost', $parametri['port'] ?? 3306, $parametri['user'] ?? 'root',
+      $parametri['dbname'] ?? '', $info['vecchioAnno']);
+    // form (allow_extra_fields: the backup checkbox exists only on the step-0 form
+    // and must not invalidate the step-1 submission)
     $form = $this->createForm(ModuloType::class, null, ['form_mode' => 'nuovo', 'values' => [$step],
+      'allow_extra_fields' => true,
       'action_url' => $this->generateUrl('sistema_nuovo', ['step' => $step + 1])]);
     $form->handleRequest($request);
     if ($form->isSubmitted() && $form->isValid()) {
@@ -357,6 +370,22 @@ class SistemaController extends BaseController {
       $finder = new Finder();
       $path = $this->getParameter('kernel.project_dir').'/FILES';
       $connection = $this->em->getConnection();
+      // backup gate: the confirmation checkbox is rendered by the step-0 form only,
+      // so on the step-1 submission it must be read from the raw request data
+      if ($step == 1 && empty($request->request->all('modulo')['backup'])) {
+        $this->addFlash('danger', $trans->trans('exception.nuovo_anno_backup'));
+        return $this->redirectToRoute('sistema_nuovo');
+      }
+      // fail-fast pre-check: abort the whole procedure before executing any statement
+      // if the database schema or the filesystem do not match what the steps expect
+      $prerequisiti = $this->controllaPrerequisitiNuovoAnno($step, $path);
+      if (!empty($prerequisiti)) {
+        foreach ($prerequisiti as $errore) {
+          $this->addFlash('danger', $trans->trans('exception.nuovo_anno_prerequisiti',
+            ['errore' => $errore]));
+        }
+        return $this->redirectToRoute('sistema_nuovo');
+      }
       // assicura che lo script non sia interrotto
       ini_set('max_execution_time', 0);
       switch($step) {
@@ -719,95 +748,75 @@ class SistemaController extends BaseController {
         case 3: // gestione circolari
           // crea nuova directory
           $fs->mkdir($path.'/upload/circolari/'.$info['vecchioAnno'], 0770);
-          // legge circolari pubblicate prima del 1/9 e non già modificate
+          // circolari published before 1/9 belong to the old school year and get archived;
+          // the anno=0 and stato='P' filter makes this step idempotent
           $circolari = $this->em->getRepository(Circolare::class)->createQueryBuilder('c')
-            ->where('c.anno=:anno AND c.pubblicata=:si AND c.data<:inizio AND c.documento NOT LIKE :modificato')
-            ->setParameter('anno', $info['vecchioAnno'])
-            ->setParameter('si', 1)
+            ->where("c.anno=0 AND c.stato='P' AND c.data<:inizio")
             ->setParameter('inizio', $info['nuovoAnno'].'-09-01')
-            ->setParameter('modificato', $info['vecchioAnno'].'/%')
             ->getQuery()
             ->getResult();
-          // modifica path e sposta file
+          $archiviate = [];
           foreach ($circolari as $circolare) {
-            // sposta file documento
-            $file = $path.'/upload/circolari/'.$circolare->getDocumento();
-            $fs->rename($file,
-              $path.'/upload/circolari/'.$info['vecchioAnno'].'/'.$circolare->getDocumento());
-            // modifica path allegati
-            $allegati = $circolare->getAllegati();
-            $nuoviAllegati = [];
-            foreach ($allegati as $allegato) {
-              $file = $path.'/upload/circolari/'.$allegato;
-              $nuoviAllegati[] = $info['vecchioAnno'].'/'.$allegato;
-              $fs->rename($file, $path.'/upload/circolari/'.$info['vecchioAnno'].'/'.$allegato);
+            // moves the attachment files to the year directory: the application resolves
+            // the path of archived items from stato/anno, the file name is unchanged
+            foreach ($circolare->getAllegati() as $allegato) {
+              $file = $allegato->getFile().'.'.$allegato->getEstensione();
+              if ($fs->exists($path.'/upload/circolari/'.$file)) {
+                $fs->rename($path.'/upload/circolari/'.$file,
+                  $path.'/upload/circolari/'.$info['vecchioAnno'].'/'.$file);
+              }
             }
-            // modifica path su db
-            $this->em->getRepository(Circolare::class)->createQueryBuilder('c')
-            ->update()
-            ->set('c.documento', "CONCAT(:anno,'/',c.documento)")
-            ->set('c.allegati', ':allegati')
-            ->where('c.id=:id')
-            ->setParameter('anno', $info['vecchioAnno'])
-            ->setParameter('allegati', serialize($nuoviAllegati))
-            ->setParameter('id', $circolare->getId())
-            ->getQuery()
-            ->execute();
+            // marks the circolare as archived; recipient sites are no longer needed
+            $circolare->setStato('A')->setAnno($info['vecchioAnno']);
+            $circolare->getSedi()->clear();
+            $archiviate[] = $circolare->getId();
           }
-          // controlla presenza di circolari dal 1/9 in poi
+          $this->em->flush();
+          // circolari published from 1/9 onwards belong to the new school year: renumbers from 1
           $nuoveCircolari = $this->em->getRepository(Circolare::class)->createQueryBuilder('c')
-            ->where('c.anno=:anno AND c.pubblicata=:si AND c.data>=:inizio')
-            ->setParameter('anno', $info['vecchioAnno'])
-            ->setParameter('si', 1)
+            ->where("c.anno=0 AND c.stato='P' AND c.data>=:inizio")
             ->setParameter('inizio', $info['nuovoAnno'].'-09-01')
             ->orderBy('c.numero', 'ASC')
             ->getQuery()
             ->getResult();
-          // circolari per il nuovo A.S.
           $num = 1;
-          $dati['sede'] = [];
-          $dati['utente'] = [];
           foreach ($nuoveCircolari as $circolare) {
-            // nuova numerazione
-            $circolare->setNumero($num)->setAnno($info['nuovoAnno']);
+            // keeps anno=0 (current year) and existing recipient data, only renumbers
+            $circolare->setNumero($num);
             $num++;
-            // conserva dati sedi per nuove circolari
-            foreach ($circolare->getSedi() as $sede) {
-              $dati['sede'][] = ['circolare' => $circolare->getId(), 'sede' => $sede->getId()];
-            }
-            // conserva dati utenti per nuove circolari
-            $utenti = $this->em->getRepository(CircolareUtente::class)->createQueryBuilder('cu')
-              ->select('(cu.circolare) AS circolare,(cu.utente) AS utente,cu.letta,cu.confermata')
-              ->join('cu.utente', 'u')
-              ->where('cu.circolare=:circolare AND u.abilitato=1')
-              ->setParameter('circolare', $circolare->getId())
-              ->getQuery()
-              ->getScalarResult();
-            $dati['utente'] = array_merge($dati['utente'], $utenti);
           }
           $this->em->flush();
-          // svuota tabelle dati destinatari
-          $sqlCommands = [
-            "SET FOREIGN_KEY_CHECKS = 0;",
-            "TRUNCATE TABLE gs_circolare_classe;",
-            "TRUNCATE TABLE gs_circolare_sede;",
-            "TRUNCATE TABLE gs_circolare_utente;",
-            "SET FOREIGN_KEY_CHECKS = 1;"];
-          foreach ($sqlCommands as $sql) {
-            $connection->executeStatement($sql);
+          // deletes per-user and per-class recipient data of the archived circolari
+          if (!empty($archiviate)) {
+            $this->em->getRepository(ComunicazioneUtente::class)->createQueryBuilder('cu')
+              ->delete()
+              ->where('cu.comunicazione IN (:lista)')
+              ->setParameter('lista', $archiviate)
+              ->getQuery()
+              ->execute();
+            $this->em->getRepository(ComunicazioneClasse::class)->createQueryBuilder('cc')
+              ->delete()
+              ->where('cc.comunicazione IN (:lista)')
+              ->setParameter('lista', $archiviate)
+              ->getQuery()
+              ->execute();
           }
-          // riscrive dati sede per nuove circolari
-          $sql = "INSERT INTO gs_circolare_sede (circolare_id, sede_id) ".
-            "VALUES (:circolare, :sede);";
-          foreach ($dati['sede'] as $sede) {
-            $connection->executeStatement($sql, $sede);
-          }
-          // riscrive dati utenti per nuove circolari
-          $sql = "INSERT INTO gs_circolare_utente (creato, modificato, circolare_id, utente_id, letta, confermata) ".
-            "VALUES (NOW(), NOW(), :circolare, :utente, :letta, :confermata);";
-          foreach ($dati['utente'] as $utente) {
-            $connection->executeStatement($sql, $utente);
-          }
+          // deletes recipient data of disabled users, for every communication category
+          $this->em->getRepository(ComunicazioneUtente::class)->createQueryBuilder('cu')
+            ->delete()
+            ->where('cu.utente IN (SELECT u.id FROM '.Utente::class.' u WHERE u.abilitato=0)')
+            ->getQuery()
+            ->execute();
+          // replaces disabled authors with the principal (the legacy model had no author
+          // on circolari: without this, deleting users on the last step breaks on the FK)
+          $preside = $this->em->getRepository(Preside::class)->findOneBy([]);
+          $this->em->getRepository(Circolare::class)->createQueryBuilder('c')
+            ->update()
+            ->set('c.autore', ':preside')
+            ->where('c.autore IN (SELECT u.id FROM '.Utente::class.' u WHERE u.abilitato=0)')
+            ->setParameter('preside', $preside)
+            ->getQuery()
+            ->execute();
           // svuota directory di archiviazione circolari
           $fs->remove($path.'/archivio/circolari');
           $fs->appendToFile($path.'/archivio/circolari/.gitkeep', '');
@@ -817,100 +826,103 @@ class SistemaController extends BaseController {
         case 4: // gestione avvisi
           // crea nuova directory
           $fs->mkdir($path.'/upload/avvisi/'.$info['vecchioAnno'], 0770);
-          // legge avvisi prima del 1/9 e non già modificati
+          // generic notices and activities before 1/9 are kept and archived for the old year;
+          // the anno=0 filter makes this step idempotent
           $avvisi = $this->em->getRepository(Avviso::class)->createQueryBuilder('a')
             ->where("a.anno=0 AND a.data<:inizio AND a.tipo IN ('C', 'A')")
             ->setParameter('inizio', $info['nuovoAnno'].'-09-01')
             ->getQuery()
             ->getResult();
-          // modifica path e sposta file
+          $archiviati = [];
           foreach ($avvisi as $avviso) {
-            // modifica path allegati
-            $allegati = $avviso->getAllegati();
-            $nuoviAllegati = [];
-            foreach ($allegati as $allegato) {
-              $file = $path.'/upload/avvisi/'.$allegato;
-              $nuoviAllegati[] = $info['vecchioAnno'].'/'.$allegato;
-              $fs->rename($file, $path.'/upload/avvisi/'.$info['vecchioAnno'].'/'.$allegato);
+            // moves the attachment files to the year directory
+            foreach ($avviso->getAllegati() as $allegato) {
+              $file = $allegato->getFile().'.'.$allegato->getEstensione();
+              if ($fs->exists($path.'/upload/avvisi/'.$file)) {
+                $fs->rename($path.'/upload/avvisi/'.$file,
+                  $path.'/upload/avvisi/'.$info['vecchioAnno'].'/'.$file);
+              }
             }
-            // modifica path su db
-            $this->em->getRepository(Avviso::class)->createQueryBuilder('a')
-              ->update()
-              ->set('a.anno', ':anno')
-              ->set('a.allegati', ':allegati')
-              ->where('a.id=:id')
-              ->setParameter('anno', $info['vecchioAnno'])
-              ->setParameter('allegati', serialize($nuoviAllegati))
-              ->setParameter('id', $avviso->getId())
+            // marks the avviso as archived; recipient sites are no longer needed
+            $avviso->setStato('A')->setAnno($info['vecchioAnno']);
+            $avviso->getSedi()->clear();
+            $archiviati[] = $avviso->getId();
+          }
+          $this->em->flush();
+          // deletes per-user and per-class recipient data of the archived avvisi
+          if (!empty($archiviati)) {
+            $this->em->getRepository(ComunicazioneUtente::class)->createQueryBuilder('cu')
+              ->delete()
+              ->where('cu.comunicazione IN (:lista)')
+              ->setParameter('lista', $archiviati)
+              ->getQuery()
+              ->execute();
+            $this->em->getRepository(ComunicazioneClasse::class)->createQueryBuilder('cc')
+              ->delete()
+              ->where('cc.comunicazione IN (:lista)')
+              ->setParameter('lista', $archiviati)
               ->getQuery()
               ->execute();
           }
-          // controlla presenza di avvisi dal 1/9 (esclusi quelli su cattedre che sono azzerate)
-          $nuoviAvvisi = $this->em->getRepository(Avviso::class)->createQueryBuilder('a')
-            ->where('a.data>=:inizio AND a.cattedra IS NULL')
+          // the other avvisi of the old year and those linked to cattedre (emptied on step 2)
+          // are deleted; archived ones are excluded because they now have anno>0
+          $daCancellare = $this->em->getRepository(Avviso::class)->createQueryBuilder('a')
+            ->where('(a.anno=0 AND a.data<:inizio) OR (a.data>=:inizio AND a.cattedra IS NOT NULL)')
             ->setParameter('inizio', $info['nuovoAnno'].'-09-01')
             ->getQuery()
             ->getResult();
-          // avvisi per il nuovo A.S.
-          $nuoviFile = [];
-          $dati['sede'] = [];
-          $dati['utente'] = [];
-          foreach ($nuoviAvvisi as $avviso) {
-            // conserva allegati
-            $nuoviFile = array_merge($nuoviFile, $avviso->getAllegati());
-            // conserva dati sedi per nuovi avvisi
-            foreach ($avviso->getSedi() as $sede) {
-              $dati['sede'][] = ['avviso' => $avviso->getId(), 'sede' => $sede->getId()];
-            }
-            // conserva dati utenti per nuovi avvisi
-            $utenti = $this->em->getRepository(AvvisoUtente::class)->createQueryBuilder('au')
-              ->select('(au.avviso) AS avviso,(au.utente) AS utente,au.letto')
-              ->join('au.utente', 'u')
-              ->where('au.avviso=:avviso AND u.abilitato=1')
-              ->setParameter('avviso', $avviso->getId())
+          if (!empty($daCancellare)) {
+            $lista = array_map(fn($a) => $a->getId(), $daCancellare);
+            $this->em->getRepository(ComunicazioneUtente::class)->createQueryBuilder('cu')
+              ->delete()
+              ->where('cu.comunicazione IN (:lista)')
+              ->setParameter('lista', $lista)
               ->getQuery()
-              ->getScalarResult();
-            $dati['utente'] = array_merge($dati['utente'], $utenti);
+              ->execute();
+            $this->em->getRepository(ComunicazioneClasse::class)->createQueryBuilder('cc')
+              ->delete()
+              ->where('cc.comunicazione IN (:lista)')
+              ->setParameter('lista', $lista)
+              ->getQuery()
+              ->execute();
+            foreach ($daCancellare as $avviso) {
+              // removes attachment rows and files (entity-level remove keeps the STI
+              // discriminator handling and clears the M2M join rows of the sedi)
+              foreach ($avviso->getAllegati() as $allegato) {
+                $file = $path.'/upload/avvisi/'.$allegato->getFile().'.'.$allegato->getEstensione();
+                if ($fs->exists($file)) {
+                  $logger->warning('Nuovo A.S.: rimosso file allegato ad avviso cancellato', [$file]);
+                  $fs->remove($file);
+                }
+                $this->em->remove($allegato);
+              }
+              $this->em->remove($avviso);
+            }
+            $this->em->flush();
           }
-          // svuota tabelle dati destinatari
-          $sqlCommands = [
-            "SET FOREIGN_KEY_CHECKS = 0;",
-            "TRUNCATE TABLE gs_avviso_classe;",
-            "TRUNCATE TABLE gs_avviso_sede;",
-            "TRUNCATE TABLE gs_avviso_utente;",
-            "SET FOREIGN_KEY_CHECKS = 1;"];
-          foreach ($sqlCommands as $sql) {
-            $connection->executeStatement($sql);
+          // removes orphan files left in the avvisi upload directory
+          $nuoviFile = array_column($this->em->getRepository(Avviso::class)->createQueryBuilder('a')
+            ->select("CONCAT(al.file, '.', al.estensione) AS nome")
+            ->join('a.allegati', 'al')
+            ->where('a.anno=0')
+            ->getQuery()
+            ->getScalarResult(), 'nome');
+          $finder->files()->in($path.'/upload/avvisi')->depth('== 0')->notName($nuoviFile)
+            ->notName('.gitkeep');
+          foreach ($finder as $file) {
+            $logger->warning('Nuovo A.S.: rimosso file orfano dalla directory avvisi',
+              [$file->getPathname()]);
           }
-          // cancella vecchi avvisi
+          $fs->remove($finder);
+          // replaces disabled authors with the principal
+          $preside = $this->em->getRepository(Preside::class)->findOneBy([]);
           $this->em->getRepository(Avviso::class)->createQueryBuilder('a')
-            ->delete()
-            ->where('(a.data<:data AND a.anno=0) OR (a.data>=:data AND a.cattedra IS NOT NULL)')
-            ->setParameter('data', $info['nuovoAnno'].'-09-01')
+            ->update()
+            ->set('a.autore', ':preside')
+            ->where('a.autore IN (SELECT u.id FROM '.Utente::class.' u WHERE u.abilitato=0)')
+            ->setParameter('preside', $preside)
             ->getQuery()
             ->execute();
-          // riscrive dati sede per nuovi avvisi
-          $sql = "INSERT INTO gs_avviso_sede (avviso_id, sede_id) ".
-            "VALUES (:avviso, :sede);";
-          foreach ($dati['sede'] as $sede) {
-            $connection->executeStatement($sql, $sede);
-          }
-          // riscrive dati utenti per nuovi avvisi
-          $sql = "INSERT INTO gs_avviso_utente (creato, modificato, avviso_id, utente_id, letto) ".
-            "VALUES (NOW(), NOW(), :avviso, :utente, :letto);";
-          foreach ($dati['utente'] as $utente) {
-            $connection->executeStatement($sql, $utente);
-          }
-          // cancella vecchi allegati
-          $finder->files()->in($path.'/upload/avvisi')->depth('== 0')->notName($nuoviFile);
-          $fs->remove($finder);
-          // sostituisce docente disabilitato
-          $preside = $this->em->getRepository(Preside::class)->findOneBy([]);
-          $sql = "UPDATE gs_avviso a ".
-            "INNER JOIN gs_utente d ON d.id = a.docente_id ".
-            "SET a.docente_id = :preside ".
-            "WHERE d.abilitato = 0;";
-          $connection->executeStatement($sql, ['preside' => $preside->getId()]);
           // messaggio finale
           $this->addFlash('success', 'message.tutte_operazioni_ok');
           break;
@@ -938,7 +950,7 @@ class SistemaController extends BaseController {
             $percorso = '/archivio/classi/'.$documento['classe'].'/riservato/';
             // rimuove dati della classe
             $documento['doc']->setClasse(null);
-            $documento['doc']->getListaDestinatari()->setFiltroDocenti([0]);
+            $documento['doc']->setFiltroDocenti([0]);
             if (!$fs->exists($path.$percorso.$file)) {
               // cerca eventuale cambio sezione
               $percorso = null;
@@ -1022,7 +1034,7 @@ class SistemaController extends BaseController {
             }
             // rimuove dati della classe
             $documento->setClasse(null);
-            $documento->getListaDestinatari()->setFiltroDocenti([0]);
+            $documento->setFiltroDocenti([0]);
             if ($percorso) {
               // sposta documento
               $nomefile = md5(uniqid()).'-'.random_int(1, 1000);
@@ -1039,33 +1051,50 @@ class SistemaController extends BaseController {
             $documento->setAlunno(null);
           }
           $this->em->flush();
-          // cancella dati documenti
-          $sqlCommands = [
-            "SET FOREIGN_KEY_CHECKS = 0;",
-            "TRUNCATE TABLE gs_lista_destinatari_classe;",
-            "TRUNCATE TABLE gs_lista_destinatari_sede;",
-            "TRUNCATE TABLE gs_lista_destinatari_utente;",
-            "TRUNCATE TABLE gs_cambio_classe;",
-            "SET FOREIGN_KEY_CHECKS = 1;",
-            "DELETE df FROM gs_documento_file df ".
-            "  INNER JOIN gs_documento d ON d.id = df.documento_id ".
-            "  WHERE d.tipo NOT IN ('B', 'D', 'H', 'C') OR d.tipo='*';",
-            "DELETE d FROM gs_documento d ".
-            "  WHERE NOT EXISTS (SELECT file_id FROM gs_documento_file WHERE documento_id = d.id);",
-            "DELETE f FROM gs_file f ".
-            "  WHERE NOT EXISTS (SELECT documento_id FROM gs_documento_file WHERE file_id = f.id);",
-            "DELETE ld FROM gs_lista_destinatari ld ".
-            "  WHERE NOT EXISTS (SELECT id FROM gs_documento WHERE lista_destinatari_id = ld.id);"];
-          foreach ($sqlCommands as $sql) {
-            $connection->executeStatement($sql);
+          // cancella dati documenti: removes every per-user/per-class recipient row
+          $this->em->getRepository(ComunicazioneUtente::class)->createQueryBuilder('cu')
+            ->delete()
+            ->where('cu.comunicazione IN (SELECT d.id FROM '.Documento::class.' d)')
+            ->getQuery()
+            ->execute();
+          $this->em->getRepository(ComunicazioneClasse::class)->createQueryBuilder('cc')
+            ->delete()
+            ->where('cc.comunicazione IN (SELECT d.id FROM '.Documento::class.' d)')
+            ->getQuery()
+            ->execute();
+          // raw TRUNCATE is acceptable here: gs_cambio_classe is a plain table outside
+          // the Comunicazione hierarchy and is not referenced by other tables
+          $connection->executeStatement("TRUNCATE TABLE gs_cambio_classe;");
+          // deletes the documenti that are not BES-related, those flagged for removal ('*')
+          // and those left without attachments
+          $daCancellare = $this->em->getRepository(Documento::class)->createQueryBuilder('d')
+            ->where("d.tipo NOT IN (:tipi) OR d.tipo='*' OR SIZE(d.allegati)=0")
+            ->setParameter('tipi', ['B', 'D', 'H', 'C'])
+            ->getQuery()
+            ->getResult();
+          foreach ($daCancellare as $doc) {
+            // removes attachment rows and files (entity-level remove keeps the STI
+            // discriminator handling and clears the M2M join rows of the sedi)
+            foreach ($doc->getAllegati() as $allegato) {
+              $file = $path.'/upload/documenti/'.$allegato->getFile().'.'.$allegato->getEstensione();
+              if ($fs->exists($file)) {
+                $logger->warning('Nuovo A.S.: rimosso file allegato a documento cancellato', [$file]);
+                $fs->remove($file);
+              }
+              $this->em->remove($allegato);
+            }
+            $this->em->remove($doc);
           }
-          // sostituisce docente disabilitato
+          $this->em->flush();
+          // replaces disabled authors with the principal
           $preside = $this->em->getRepository(Preside::class)->findOneBy([]);
-          $sql = "UPDATE gs_documento doc ".
-            "INNER JOIN gs_utente d ON d.id = doc.docente_id ".
-            "SET doc.docente_id = :preside ".
-            "WHERE d.abilitato = 0;";
-          $connection->executeStatement($sql, ['preside' => $preside->getId()]);
+          $this->em->getRepository(Documento::class)->createQueryBuilder('d')
+            ->update()
+            ->set('d.autore', ':preside')
+            ->where('d.autore IN (SELECT u.id FROM '.Utente::class.' u WHERE u.abilitato=0)')
+            ->setParameter('preside', $preside)
+            ->getQuery()
+            ->execute();
           // svuota archivio documenti di classe
           $finder = new Finder();
           $finder->in($path.'/archivio/classi')->notName('.gitkeep');
@@ -1152,6 +1181,92 @@ class SistemaController extends BaseController {
     // mostra la pagina di risposta
     return $this->renderHtml('sistema', 'nuovo', $dati, $info, [$form->createView(),
       'message.nuovo_anno_'.$step]);
+  }
+
+  /**
+   * Controlla i prerequisiti della procedura di passaggio al nuovo A.S.
+   *
+   * @param int $step Passo della procedura
+   * @param string $path Percorso della directory dei file dell'applicazione
+   *
+   * @return array Lista degli errori riscontrati (vuota se tutto ok)
+   *
+   */
+  private function controllaPrerequisitiNuovoAnno(int $step, string $path): array {
+    $errori = [];
+    // tables required by each step of the procedure
+    $tabelle = [
+      1 => ['gs_annotazione', 'gs_assenza', 'gs_assenza_lezione', 'gs_classe', 'gs_colloquio',
+        'gs_definizione_consiglio', 'gs_definizione_richiesta', 'gs_deroga_assenza', 'gs_entrata',
+        'gs_festivita', 'gs_firma', 'gs_lezione', 'gs_log', 'gs_messenger_messages',
+        'gs_modulo_formativo', 'gs_nota', 'gs_nota_alunno', 'gs_orario', 'gs_orario_docente',
+        'gs_osservazione', 'gs_presenza', 'gs_proposta_voto', 'gs_provisioning', 'gs_raggruppamento',
+        'gs_raggruppamento_alunno', 'gs_richiesta', 'gs_richiesta_colloquio', 'gs_scansione_oraria',
+        'gs_spid', 'gs_storico_esito', 'gs_storico_voto', 'gs_uscita', 'gs_utente', 'gs_valutazione'],
+      2 => ['gs_cattedra', 'gs_classe', 'gs_esito', 'gs_materia', 'gs_scrutinio', 'gs_storico_esito',
+        'gs_storico_voto', 'gs_utente', 'gs_voto_scrutinio'],
+      3 => ['gs_allegato', 'gs_comunicazione', 'gs_comunicazione_classe', 'gs_comunicazione_sede',
+        'gs_comunicazione_utente', 'gs_utente'],
+      4 => ['gs_allegato', 'gs_comunicazione', 'gs_comunicazione_classe', 'gs_comunicazione_sede',
+        'gs_comunicazione_utente', 'gs_utente'],
+      5 => ['gs_allegato', 'gs_cambio_classe', 'gs_comunicazione', 'gs_comunicazione_classe',
+        'gs_comunicazione_sede', 'gs_comunicazione_utente', 'gs_utente'],
+      6 => [],
+      7 => ['gs_utente'],
+      8 => ['gs_configurazione']];
+    // entity fields and associations the procedure relies on: [fields, associations]
+    $mappature = [
+      Comunicazione::class => [['stato', 'anno', 'data', 'tipo'], ['allegati', 'sedi', 'autore']],
+      Avviso::class => [[], ['cattedra']],
+      Circolare::class => [['numero'], []],
+      Documento::class => [[], ['alunno', 'classe']],
+      ComunicazioneUtente::class => [['letto', 'firmato'], ['comunicazione', 'utente']],
+      ComunicazioneClasse::class => [[], ['comunicazione', 'classe']],
+      Allegato::class => [['file', 'estensione'], ['comunicazione']],
+      CambioClasse::class => [[], ['alunno']]];
+    // writable directories required by the procedure
+    $directory = ['/tmp', '/upload/circolari', '/upload/avvisi', '/upload/documenti',
+      '/archivio/circolari', '/archivio/classi', '/archivio/scrutini', '/archivio/registri'];
+    // step 1 validates the prerequisites of ALL the steps, before any statement is executed
+    $controllaTabelle = ($step == 1) ? array_unique(array_merge(...array_values($tabelle))) :
+      ($tabelle[$step] ?? []);
+    sort($controllaTabelle);
+    try {
+      $esistenti = $this->em->getConnection()->createSchemaManager()->listTableNames();
+    } catch (Exception $e) {
+      return ['errore di connessione al database: '.$e->getMessage()];
+    }
+    foreach (array_diff($controllaTabelle, $esistenti) as $mancante) {
+      $errori[] = 'tabella mancante nello schema del database: '.$mancante;
+    }
+    if ($step == 1) {
+      // checks the Doctrine mapping of the entities used by the procedure
+      foreach ($mappature as $entita => [$campi, $associazioni]) {
+        try {
+          $metadata = $this->em->getClassMetadata($entita);
+        } catch (Exception) {
+          $errori[] = 'entità mancante: '.$entita;
+          continue;
+        }
+        foreach ($campi as $campo) {
+          if (!$metadata->hasField($campo)) {
+            $errori[] = 'campo mancante: '.$entita.'::$'.$campo;
+          }
+        }
+        foreach ($associazioni as $associazione) {
+          if (!$metadata->hasAssociation($associazione)) {
+            $errori[] = 'associazione mancante: '.$entita.'::$'.$associazione;
+          }
+        }
+      }
+      // checks the directories used to move/archive files
+      foreach ($directory as $dir) {
+        if (!is_dir($path.$dir) || !is_writable($path.$dir)) {
+          $errori[] = 'directory mancante o non scrivibile: FILES'.$dir;
+        }
+      }
+    }
+    return $errori;
   }
 
   /**

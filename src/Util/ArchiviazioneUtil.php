@@ -27,7 +27,7 @@ use App\Entity\Entrata;
 use App\Entity\Uscita;
 use App\Entity\Nota;
 use App\Entity\Annotazione;
-use App\Entity\AvvisoUtente;
+use App\Entity\ComunicazioneUtente;
 use App\Entity\Genitore;
 use App\Entity\Scrutinio;
 use DateTimeZone;
@@ -39,7 +39,6 @@ use App\Entity\Classe;
 use App\Entity\Docente;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Environment;
@@ -1589,27 +1588,21 @@ class ArchiviazioneUtil {
       foreach ($annotazioni as $a) {
         $alunni = [];
         $alunniAnnotazione = [];
-        if ($a->getAvviso() && in_array('A', $a->getAvviso()->getDestinatari())) {
-          // legge alunno destinatario
+        if ($a->getAvviso() && $a->getAvviso()->getAlunni() == 'U') {
+          // notice addressed to individual students: reads them from the recipient rows
           $alunniAnnotazione = $this->em->getRepository(Alunno::class)->createQueryBuilder('a')
-            ->join(AvvisoUtente::class, 'au', 'WITH', 'au.utente=a.id')
-            ->join('au.avviso', 'av')
-            ->where('av.id=:avviso AND INSTR(av.destinatari, :destinatari)>0 AND av.filtroTipo=:filtro')
+            ->join(ComunicazioneUtente::class, 'cu', 'WITH', 'cu.utente=a.id')
+            ->where('cu.comunicazione=:avviso')
             ->setParameter('avviso', $a->getAvviso())
-            ->setParameter('destinatari', 'A')
-            ->setParameter('filtro', 'U')
             ->getQuery()
             ->getResult();
-        } elseif ($a->getAvviso() && in_array('G', $a->getAvviso()->getDestinatari())) {
-          // legge genitore destinatario
+        } elseif ($a->getAvviso() && $a->getAvviso()->getGenitori() == 'U') {
+          // notice addressed to individual parents: reads the related students
           $alunniAnnotazione = $this->em->getRepository(Alunno::class)->createQueryBuilder('a')
             ->join(Genitore::class, 'g', 'WITH', 'g.alunno=a.id')
-            ->join(AvvisoUtente::class, 'au', 'WITH', 'au.utente=g.id')
-            ->join('au.avviso', 'av')
-            ->where('av.id=:avviso AND INSTR(av.destinatari, :destinatari)>0 AND av.filtroTipo=:filtro')
+            ->join(ComunicazioneUtente::class, 'cu', 'WITH', 'cu.utente=g.id')
+            ->where('cu.comunicazione=:avviso')
             ->setParameter('avviso', $a->getAvviso())
-            ->setParameter('destinatari', 'G')
-            ->setParameter('filtro', 'U')
             ->getQuery()
             ->getResult();
         }
@@ -1665,16 +1658,22 @@ class ArchiviazioneUtil {
               $html .= '<b>Gruppo: '.$classe->getAnno().$classe->getSezione().'-'.$an['gruppo'].'</b><br>';
             }
             if (count($an['alunni']) > 0) {
-              $html .= '<i>Destinatari ';
-              foreach ($an['avviso']->getDestinatari() as $key => $dest) {
-                $html .= ($key > 0 ? ', ' : '').($dest == 'G' ? 'genitori' : 'alunni');
+              // recipient labels from the unified communication model
+              $categorie = [];
+              if ($an['avviso']->getAlunni() == 'U') {
+                $categorie[] = 'alunni';
               }
-              $html .= ': <b>'.implode('</b>, <b>', $an['alunni']).'</b></i><br>';
-            } elseif ($an['avviso'] and $an['avviso']->getFiltroTipo() == 'R' ) {
-              $html .= '<i>Destinatari ';
-              foreach ($an['avviso']->getFiltro() as $key => $dest) {
-                $html .= ($key > 0 ? ', ' : '').($dest == 'I' ? 'Rappresentante di Istituto' : 'Rappresentante di Classe');
+              if ($an['avviso']->getGenitori() == 'U') {
+                $categorie[] = 'genitori';
               }
+              $html .= '<i>Destinatari '.implode(', ', $categorie).
+                ': <b>'.implode('</b>, <b>', $an['alunni']).'</b></i><br>';
+            } elseif ($an['avviso'] && ($an['avviso']->getRappresentantiAlunni() != 'N' ||
+                      $an['avviso']->getRappresentantiGenitori() != 'N')) {
+              // notice addressed to class/school representatives
+              $html .= '<i>Destinatari Rappresentanti'.
+                (($an['avviso']->getRappresentantiAlunni() == 'C' ||
+                  $an['avviso']->getRappresentantiGenitori() == 'C') ? ' di Classe' : '').'</i><br>';
             }
             $html .= '<span style="font-size:9pt">'.$an['testo'].'</span><br>'.
               '(<i>'.$an['docente'].'</i>)';
@@ -2001,32 +2000,22 @@ class ArchiviazioneUtil {
       // crea directory
       $fs->mkdir($percorso, 0775);
     }
-    // copia circolare
-    $file = new File($this->dirCircolari.'/'.$circolare->getDocumento());
-    $nuovofile = $percorso.'/circolare-'.str_pad($circolare->getNumero(), 3, '0', STR_PAD_LEFT).
-      '-del-'.$circolare->getData()->format('d-m-Y').'.'.$file->getExtension();
-    $fs->copy($file->getPathname(), $nuovofile, true);
-    // controllo esistenza del file
-    if (!$fs->exists($file)) {
-      // segnala errore
-      $this->reqstack->getSession()->getFlashBag()->add('warning',
-        'Circolare n. '.$circolare->getNumero().' del '.$circolare->getData()->format('d-m-Y').
-        ' non creata.');
-      $num = 0;
-    }
-    // copia allegati
-    foreach ($circolare->getAllegati() as $k=>$allegato) {
-      $file = new File($this->dirCircolari.'/'.$allegato);
+    // source directory depends on the archive state of the circolare
+    $dir = $this->dirCircolari.($circolare->getStato() == 'A' ? '/'.$circolare->getAnno() : '');
+    // copia documento principale e allegati (the first attachment is the main document)
+    foreach ($circolare->getAllegati() as $k => $allegato) {
+      $file = $dir.'/'.$allegato->getFile().'.'.$allegato->getEstensione();
       $nuovofile = $percorso.'/circolare-'.str_pad($circolare->getNumero(), 3, '0', STR_PAD_LEFT).
         '-del-'.$circolare->getData()->format('d-m-Y').
-        '-allegato-'.($k + 1).'.'.$file->getExtension();
-      $fs->copy($file->getPathname(), $nuovofile, true);
-      // controllo esistenza del file
-      if (!$fs->exists($file)) {
+        ($k == 0 ? '' : '-allegato-'.$k).'.'.$allegato->getEstensione();
+      if ($fs->exists($file)) {
+        $fs->copy($file, $nuovofile, true);
+      } else {
         // segnala errore
         $this->reqstack->getSession()->getFlashBag()->add('warning',
-          'Allegato n. '.($k + 1).' della circolare n. '.$circolare->getNumero().
-          ' non creato.');
+          ($k == 0 ? 'Circolare n. '.$circolare->getNumero() :
+          'Allegato n. '.$k.' della circolare n. '.$circolare->getNumero()).
+          ' del '.$circolare->getData()->format('d-m-Y').' non archiviata.');
         $num = 0;
       }
     }

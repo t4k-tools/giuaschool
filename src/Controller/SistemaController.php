@@ -1193,7 +1193,6 @@ class SistemaController extends BaseController {
    *
    */
   private function controllaPrerequisitiNuovoAnno(int $step, string $path): array {
-    $errori = [];
     // tables required by each step of the procedure
     $tabelle = [
       1 => ['gs_annotazione', 'gs_assenza', 'gs_assenza_lezione', 'gs_classe', 'gs_colloquio',
@@ -1230,40 +1229,78 @@ class SistemaController extends BaseController {
     // step 1 validates the prerequisites of ALL the steps, before any statement is executed
     $controllaTabelle = ($step == 1) ? array_unique(array_merge(...array_values($tabelle))) :
       ($tabelle[$step] ?? []);
-    sort($controllaTabelle);
+    return $this->controllaPrerequisiti($controllaTabelle, $step == 1 ? $mappature : [],
+      $step == 1 ? $directory : [], $path);
+  }
+
+  /**
+   * Controlla i prerequisiti della procedura di archiviazione dei registri
+   *
+   * @return array Lista degli errori riscontrati (vuota se tutto ok)
+   */
+  private function controllaPrerequisitiArchiviazione(): array {
+    // tables read by ArchiviazioneUtil
+    $tabelle = ['gs_allegato', 'gs_annotazione', 'gs_assenza', 'gs_assenza_lezione',
+      'gs_cattedra', 'gs_classe', 'gs_comunicazione', 'gs_comunicazione_utente', 'gs_entrata',
+      'gs_esito', 'gs_firma', 'gs_lezione', 'gs_nota', 'gs_scansione_oraria', 'gs_scrutinio',
+      'gs_uscita', 'gs_utente', 'gs_valutazione', 'gs_voto_scrutinio'];
+    // entity fields and associations used by ArchiviazioneUtil: [fields, associations]
+    $mappature = [
+      Comunicazione::class => [['stato', 'anno', 'data', 'alunni', 'genitori',
+        'rappresentantiAlunni', 'rappresentantiGenitori'], ['allegati']],
+      Circolare::class => [['numero'], []],
+      ComunicazioneUtente::class => [[], ['comunicazione', 'utente']],
+      Allegato::class => [['file', 'estensione'], ['comunicazione']]];
+    return $this->controllaPrerequisiti($tabelle, $mappature, ['/archivio'],
+      $this->getParameter('kernel.project_dir').'/FILES');
+  }
+
+  /**
+   * Controlla i prerequisiti generici di una procedura: tabelle nello schema del
+   * database, mapping Doctrine delle entità, directory scrivibili
+   *
+   * @param array $tabelle Lista delle tabelle che devono esistere nello schema
+   * @param array $mappature Lista di entità con campi/associazioni richiesti
+   * @param array $directory Lista delle directory che devono essere scrivibili (relative a $path)
+   * @param string $path Percorso della directory dei file dell'applicazione
+   *
+   * @return array Lista degli errori riscontrati (vuota se tutto ok)
+   */
+  private function controllaPrerequisiti(array $tabelle, array $mappature, array $directory,
+                                         string $path): array {
+    $errori = [];
+    sort($tabelle);
     try {
       $esistenti = $this->em->getConnection()->createSchemaManager()->listTableNames();
     } catch (Exception $e) {
       return ['errore di connessione al database: '.$e->getMessage()];
     }
-    foreach (array_diff($controllaTabelle, $esistenti) as $mancante) {
+    foreach (array_diff($tabelle, $esistenti) as $mancante) {
       $errori[] = 'tabella mancante nello schema del database: '.$mancante;
     }
-    if ($step == 1) {
-      // checks the Doctrine mapping of the entities used by the procedure
-      foreach ($mappature as $entita => [$campi, $associazioni]) {
-        try {
-          $metadata = $this->em->getClassMetadata($entita);
-        } catch (Exception) {
-          $errori[] = 'entità mancante: '.$entita;
-          continue;
-        }
-        foreach ($campi as $campo) {
-          if (!$metadata->hasField($campo)) {
-            $errori[] = 'campo mancante: '.$entita.'::$'.$campo;
-          }
-        }
-        foreach ($associazioni as $associazione) {
-          if (!$metadata->hasAssociation($associazione)) {
-            $errori[] = 'associazione mancante: '.$entita.'::$'.$associazione;
-          }
+    // checks the Doctrine mapping of the entities used by the procedure
+    foreach ($mappature as $entita => [$campi, $associazioni]) {
+      try {
+        $metadata = $this->em->getClassMetadata($entita);
+      } catch (Exception) {
+        $errori[] = 'entità mancante: '.$entita;
+        continue;
+      }
+      foreach ($campi as $campo) {
+        if (!$metadata->hasField($campo)) {
+          $errori[] = 'campo mancante: '.$entita.'::$'.$campo;
         }
       }
-      // checks the directories used to move/archive files
-      foreach ($directory as $dir) {
-        if (!is_dir($path.$dir) || !is_writable($path.$dir)) {
-          $errori[] = 'directory mancante o non scrivibile: FILES'.$dir;
+      foreach ($associazioni as $associazione) {
+        if (!$metadata->hasAssociation($associazione)) {
+          $errori[] = 'associazione mancante: '.$entita.'::$'.$associazione;
         }
+      }
+    }
+    // checks the directories used to move/archive files
+    foreach ($directory as $dir) {
+      if (!is_dir($path.$dir) || !is_writable($path.$dir)) {
+        $errori[] = 'directory mancante o non scrivibile: FILES'.$dir;
       }
     }
     return $errori;
@@ -1326,11 +1363,10 @@ class SistemaController extends BaseController {
         ' - '.$classe->getSede()->getNomeBreve();
       $listaClassi[$nome] = $classe;
     }
+    // published circolari of the current school year (anno=0 in the unified model)
     $listaCircolari = $this->em->getRepository(Circolare::class)->createQueryBuilder('c')
-      ->where('c.pubblicata=:si AND c.anno=:anno')
+      ->where("c.stato='P' AND c.anno=0")
       ->orderBy('c.numero', 'ASC')
-      ->setParameter('si', 1)
-      ->setParameter('anno', (int) substr((string) $this->reqstack->getSession()->get('/CONFIG/SCUOLA/anno_scolastico'), 0, 4))
       ->getQuery()
       ->getResult();
     // form
@@ -1338,6 +1374,16 @@ class SistemaController extends BaseController {
       'values' => [$listaDocenti, $listaSostegno, $listaClassi, $listaCircolari]]);
     $form->handleRequest($request);
     if ($form->isSubmitted() && $form->isValid()) {
+      // fail-fast pre-check: abort before any archive operation if the schema or the
+      // filesystem do not match what ArchiviazioneUtil expects
+      $prerequisiti = $this->controllaPrerequisitiArchiviazione();
+      if (!empty($prerequisiti)) {
+        foreach ($prerequisiti as $errore) {
+          $this->addFlash('danger', $trans->trans('exception.archiviazione_prerequisiti',
+            ['errore' => $errore]));
+        }
+        return $this->redirectToRoute('sistema_archivia');
+      }
       // assicura che lo script non sia interrotto
       ini_set('max_execution_time', 0);
       // aumenta il limite di memoria\

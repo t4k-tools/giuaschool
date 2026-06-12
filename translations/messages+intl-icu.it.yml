@@ -1614,6 +1614,7 @@ exception.no_recupero_scrutinio: "<strong>{materia}</strong>: manca la modalità
 exception.nota_con_nome: Il testo della nota non può contenere i nomi degli alunni ({nome})
 exception.not_allowed: Azione richiesta non permessa.
 exception.notifica_non_permessa: Spiacente non puoi aggiungere o modificare una notifica al genitore.
+exception.archiviazione_prerequisiti: "Prerequisito mancante, archiviazione annullata: {errore}"
 exception.nuovo_anno_backup: "La procedura non può iniziare: devi prima confermare di aver eseguito il backup del database."
 exception.nuovo_anno_prerequisiti: "Prerequisito mancante, procedura annullata senza modifiche al database: {errore}"
 exception.no_voto_esito: Mancano uno o più voti per l'esito dell'alunn{sex} {alunno}.

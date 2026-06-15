@@ -445,10 +445,11 @@ class RichiesteController extends BaseController {
             ->setGiustificato(new DateTime('today'))
             ->setDocenteGiustifica($this->getUser());
         }
-        // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenze
-        $reg->ricalcolaOreAlunno($data, $alunno);
+        // memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $data, $alunno): void {
+          $this->em->flush();
+          $reg->ricalcolaOreAlunno($data, $alunno);
+        });
         // log azione
         if (isset($uscitaOld) && $mode == 'DELETE') {
           // cancella

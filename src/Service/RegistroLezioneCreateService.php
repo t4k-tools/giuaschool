@@ -12,6 +12,7 @@ use App\Entity\Materia;
 use App\Entity\ModuloFormativo;
 use App\Entity\AssenzaLezione;
 use App\Entity\Valutazione;
+use App\Util\HtmlSanitizer;
 use App\Util\LogHandler;
 use App\Util\RegistroUtil;
 use DateTime;
@@ -134,6 +135,9 @@ class RegistroLezioneCreateService
         ?int $materiaId = null,
         ?string $tipoSostituzione = null,
     ): array {
+        // sanifica il testo libero: rimuove l'HTML e rende sicuri i link (reso poi con |raw)
+        $argomento = HtmlSanitizer::sanitizeMessage($argomento);
+        $attivita = HtmlSanitizer::sanitizeMessage($attivita);
         [$cattedra, $classe, $materia] = $this->resolveContext($docente, $cattedraId, $classeId);
         $dataObj = DateTime::createFromFormat('Y-m-d', $data) ?: new DateTime();
 
@@ -344,6 +348,9 @@ class RegistroLezioneCreateService
         string $attivita,
         ?int $moduloFormativoId = null,
     ): array {
+        // sanifica il testo libero: rimuove l'HTML e rende sicuri i link (reso poi con |raw)
+        $argomento = HtmlSanitizer::sanitizeMessage($argomento);
+        $attivita = HtmlSanitizer::sanitizeMessage($attivita);
         $state = $this->resolveOwnedLessonState($docente, $cattedraId, $classeId, $data, $ora, 'edit');
         $firmaDocente = $state['firmaDocente'];
         $lezioneDocente = $state['lezioneDocente'];

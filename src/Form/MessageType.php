@@ -8,6 +8,7 @@
 
 namespace App\Form;
 
+use App\Util\HtmlSanitizer;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -32,13 +33,8 @@ class MessageType extends AbstractType {
       $builder->addModelTransformer(new CallbackTransformer(
           // converte nel formato testo semplice per l'editing
           fn($messaggio) => strip_tags((string) $messaggio),
-          // converte nel formato messaggio (testo con HTML) per la memorizzazione
-          function ($testo) {
-            // sanifica input
-            $testoPulito = strip_tags((string) $testo);
-            return preg_replace('#\b(https?):(/?/?)([^,\s()<>]+(?:\([\w\d]+\)|([^,[:punct:]\s]|/)))#i',
-              '<a href="$1://$3" target="_blank" title="Collegamento esterno">$1://$3</a>', $testoPulito);;
-          }
+          // converte nel formato messaggio (testo sanificato + link) per la memorizzazione
+          fn($testo) => HtmlSanitizer::sanitizeMessage($testo)
         ));
     }
 

@@ -10,6 +10,7 @@ use App\Entity\Materia;
 use App\Entity\Valutazione;
 use App\Util\GenitoriUtil;
 use App\Util\LogHandler;
+use App\Util\HtmlSanitizer;
 use App\Util\RegistroUtil;
 use App\Util\StaffUtil;
 use DateTime;
@@ -171,7 +172,7 @@ class VotiService
             ->setLezione($lezione)
             ->setVisibile($visibile)
             ->setMedia($visibile ? $media : false)
-            ->setArgomento(trim($argomento))
+            ->setArgomento(HtmlSanitizer::sanitizeMessage(trim($argomento)))
             ->setVoto($this->normalizeVote($voto))
             ->setGiudizio(trim($giudizio))
             ->setOrdine(
@@ -252,7 +253,7 @@ class VotiService
             ->setLezione($lezione)
             ->setVisibile($visibile)
             ->setMedia($visibile ? $media : false)
-            ->setArgomento(trim($argomento))
+            ->setArgomento(HtmlSanitizer::sanitizeMessage(trim($argomento)))
             ->setVoto($this->normalizeVote($voto))
             ->setGiudizio(trim($giudizio));
 

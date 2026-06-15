@@ -8,6 +8,7 @@ use App\Entity\Classe;
 use App\Entity\Docente;
 use App\Entity\Materia;
 use App\Entity\Nota;
+use App\Util\HtmlSanitizer;
 use App\Util\LogHandler;
 use App\Util\RegistroUtil;
 use DateTime;
@@ -169,7 +170,7 @@ class RegistroNoteService
 
         $note
             ->setDocenteProvvedimento($docente)
-            ->setProvvedimento(trim($provvedimento));
+            ->setProvvedimento(HtmlSanitizer::sanitizeMessage(trim($provvedimento)));
 
         $this->em->flush();
         $this->logHandler->logAzione('REGISTRO', 'Provvedimento nota API');
@@ -283,7 +284,7 @@ class RegistroNoteService
 
         $note
             ->setTipo($tipo)
-            ->setTesto($testo);
+            ->setTesto(HtmlSanitizer::sanitizeMessage($testo));
 
         if ($tipo === 'I') {
             if (empty($alunnoIds)) {

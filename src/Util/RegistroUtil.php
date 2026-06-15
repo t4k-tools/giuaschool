@@ -1753,6 +1753,7 @@ class RegistroUtil {
    */
   public function ricalcolaOreAlunno(DateTime $data, Alunno $alunno) {
     $this->em->getConnection()->beginTransaction();
+    try {
     // lezioni del giorno
     $lezioni = $this->em->getRepository(Lezione::class)->createQueryBuilder('l')
       ->select('l.id,s.ora,s.inizio,s.fine,s.durata')
@@ -1824,7 +1825,13 @@ class RegistroUtil {
         }
       }
     }
-    $this->em->getConnection()->commit();
+      $this->em->getConnection()->commit();
+    } catch (\Throwable $e) {
+      // roll back so a partial recalculation (rows deleted but not reinserted) is never
+      // committed and the connection is not left with an open transaction
+      $this->em->getConnection()->rollBack();
+      throw $e;
+    }
   }
 
   /**
@@ -1835,6 +1842,7 @@ class RegistroUtil {
    */
   public function ricalcolaOreLezione(DateTime $data, Lezione $lezione) {
     $this->em->getConnection()->beginTransaction();
+    try {
     // orario lezione
     $ora = $this->em->getRepository(ScansioneOraria::class)->createQueryBuilder('s')
       ->select('s.inizio,s.fine,s.durata')
@@ -1909,7 +1917,12 @@ class RegistroUtil {
         }
       }
     }
-    $this->em->getConnection()->commit();
+      $this->em->getConnection()->commit();
+    } catch (\Throwable $e) {
+      // roll back so the connection is not left with an open transaction on failure
+      $this->em->getConnection()->rollBack();
+      throw $e;
+    }
   }
 
   /**

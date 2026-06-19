@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,18 @@ import Link from "next/link";
 
 const TOKEN_STORAGE_KEY = "jwt_token";
 
-export default function AuthCallbackPage() {
+function Caricamento() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-3">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="text-sm text-muted-foreground">Accesso in corso…</p>
+      </div>
+    </div>
+  );
+}
+
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +60,14 @@ export default function AuthCallbackPage() {
     );
   }
 
+  return <Caricamento />;
+}
+
+// useSearchParams() richiede un confine <Suspense> per il prerender statico (Next 16.2+)
+export default function AuthCallbackPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-        <p className="text-sm text-muted-foreground">Accesso in corso…</p>
-      </div>
-    </div>
+    <Suspense fallback={<Caricamento />}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

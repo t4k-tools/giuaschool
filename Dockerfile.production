@@ -70,6 +70,16 @@ RUN printf '%s\n' \
     > /etc/apache2/conf-available/security-headers.conf \
     && a2enconf security-headers
 
+# Deny access to the legacy web installer (AUDIT-007): production installs the DB via
+# AUTO_INIT_DB and updates by rebuilding the image, so /install is never used here.
+# Defense in depth on top of removing public/install from the image below.
+RUN printf '%s\n' \
+    '<LocationMatch "^/install/">' \
+    '    Require all denied' \
+    '</LocationMatch>' \
+    > /etc/apache2/conf-available/deny-install.conf \
+    && a2enconf deny-install
+
 WORKDIR /var/www/html
 
 FROM app-base AS vendor
@@ -91,6 +101,11 @@ WORKDIR /var/www/html
 COPY . /var/www/html/
 COPY --from=vendor /var/www/html/vendor /var/www/html/vendor
 COPY docker/app-entrypoint.sh /usr/local/bin/app-entrypoint
+
+# Remove the legacy web installer from the production image (AUDIT-007): an anonymous
+# request to /install/app.php would otherwise re-arm a fresh install (write .env, reset
+# schema, create admin). Not used in production (DB via AUTO_INIT_DB, updates via rebuild).
+RUN rm -rf public/install
 
 RUN chmod +x /usr/local/bin/app-entrypoint \
     && mkdir -p /var/www/html/FILES /var/www/html/config/jwt /var/www/html/var/cache /var/www/html/var/log /var/www/html/var/sessions \

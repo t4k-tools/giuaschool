@@ -7,9 +7,9 @@ docker/backend.env.local
 refactor/.env.local
 refactor/node_modules
 refactor/.next
-src/vendor
-src/var/cache
-src/var/log
-src/var/sessions
-src/FILES/tmp/*
+vendor
+var/cache
+var/log
+var/sessions
+FILES/tmp/*
 Docs/*.pdf

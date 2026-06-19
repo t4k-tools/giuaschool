@@ -1773,6 +1773,7 @@ exception.modulo_campo_senza_tipo: Non possono esistere campi del modulo senza t
 exception.campo_obbligatorio_vuoto: Non hai inserito un valore accettabile in un campo obbligatorio.
 exception.modulo_allegati_mancanti: Non hai caricato gli allegati richiesti.
 exception.modulo_campo_nome_riservato: Non puoi inserire un campo con il nome "data".
+exception.modulo_campo_nome_invalido: Il nome del campo può contenere solo lettere, cifre e il carattere underscore (_).
 exception.campo_data_vuoto: Non hai inserito un valore per la data.
 exception.campo_data_successivo_oggi: Non puoi inserire una data successiva a quella di oggi.
 exception.richiesta_esistente: Esiste già una richiesta per questa data.

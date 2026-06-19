@@ -712,7 +712,11 @@ class ScrutinioUtil {
     // esegue funzione di passaggio stato (se esiste)
     $periodoStato = ($periodo == 'S' ? 'P' : (in_array($periodo, ['R', 'X']) ? 'G' : $periodo));
     $func = 'passaggioStato_'.$periodoStato.'_'.$scrutinio->getStato().'_'.$stato;
-    if (method_exists($this, $func) && ($res = $this->$func($docente, $request, $form, $classe, $scrutinio))) {
+    // run the whole state transition in one transaction: each transition writes votes/
+    // outcomes/state with several flushes, and a mid-way failure would otherwise leave the
+    // scrutinio half-updated (e.g. dati cleared but state not advanced)
+    if (method_exists($this, $func) &&
+        ($res = $this->em->wrapInTransaction(fn () => $this->$func($docente, $request, $form, $classe, $scrutinio)))) {
       // ok
       return $stato;
     } elseif (empty($res)) {

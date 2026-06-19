@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block pagina_contenuto %}
+<div class="container_fluid gs-mt-0">
+  <div class="col-sm-10 col-sm-offset-1 gs-mt-4">
+    <div class="panel panel-primary" >
+      <div class="panel-heading">
+        <div class="panel-title">Recupero della password di accesso</div>
+      </div>
+      <div class="panel-body">
+    {% if successo %}
+        <div class="alert alert-success">
+          <span class="gs-text-normal gs-big"><strong>{{ successo|trans }}</strong></span>
+        </div>
+    {% endif %}
+    {% if errore %}
+        <div class="alert alert-danger">
+          <span class="gs-text-normal gs-big"><strong>{{ errore|trans }}</strong></span>
+        </div>
+    {% endif %}
+    {% if mostraConferma %}
+        <div class="help-block">
+          <span class="gs-text-normal">Per reimpostare la password del tuo account clicca sul pulsante <strong>Conferma</strong>. Riceverai le nuove credenziali all'indirizzo email configurato.</span>
+        </div>
+        {{ form_start(form) }}
+          <div class="form-group text-center gs-mt-4">
+            {{ form_widget(form.submit) }}
+          </div>
+          {{ form_widget(form._token) }}
+        {{ form_end(form, {'render_rest': false}) }}
+    {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

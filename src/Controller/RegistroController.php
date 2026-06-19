@@ -498,18 +498,20 @@ class RegistroController extends BaseController
         }
         $this->em->persist($firma);
         $trasformazione['log']['crea'][] = $firma;
-        // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenza
-        if ($numOra > $ora || empty($trasformazione['lezione'])) {
-          // assenze di lezione aggiunta
-          $reg->ricalcolaOreLezione($dataObj, $lezione);
-        } elseif ($numOra == $ora && !empty($trasformazione['assenze'])) {
-          // assenze di lezioni modificate
-          foreach ($trasformazione['assenze'] as $assenza) {
-            $reg->ricalcolaOreLezione($dataObj, $assenza);
+        // memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $dataObj, $lezione, $numOra, $ora, $trasformazione): void {
+          $this->em->flush();
+          // ricalcola ore assenza
+          if ($numOra > $ora || empty($trasformazione['lezione'])) {
+            // assenze di lezione aggiunta
+            $reg->ricalcolaOreLezione($dataObj, $lezione);
+          } elseif ($numOra == $ora && !empty($trasformazione['assenze'])) {
+            // assenze di lezioni modificate
+            foreach ($trasformazione['assenze'] as $assenza) {
+              $reg->ricalcolaOreLezione($dataObj, $assenza);
+            }
           }
-        }
+        });
         // log azione
         $dblogger->logAzione('REGISTRO', 'Crea lezione');
         $trasformazione['log'] = [];
@@ -819,21 +821,23 @@ class RegistroController extends BaseController
         // modifica firma
         $firmaDocente->setlezione($nuovaLezione);
       }
-      // elimina ore assenze
-      if (!empty($log['cancella'])) {
-        $this->em->getRepository(AssenzaLezione::class)->createQueryBuilder('al')
-          ->delete()
-          ->where('al.lezione=:lezione')
-          ->setParameter('lezione', $log['cancella']->getId())
-          ->getQuery()
-          ->execute();
-      }
-      // ok: memorizza dati
-      $this->em->flush();
-      // ricalcola assenze di lezione
-      if (!empty($log['crea'])) {
-        $reg->ricalcolaOreLezione($dataObj, $log['crea']);
-      }
+      // elimina ore assenze, memorizza e ricalcola atomicamente: la DQL delete scrive
+      // subito, quindi senza transazione un fallimento lascerebbe dati incoerenti
+      $this->em->wrapInTransaction(function () use ($reg, $dataObj, $log): void {
+        if (!empty($log['cancella'])) {
+          $this->em->getRepository(AssenzaLezione::class)->createQueryBuilder('al')
+            ->delete()
+            ->where('al.lezione=:lezione')
+            ->setParameter('lezione', $log['cancella']->getId())
+            ->getQuery()
+            ->execute();
+        }
+        $this->em->flush();
+        // ricalcola assenze di lezione
+        if (!empty($log['crea'])) {
+          $reg->ricalcolaOreLezione($dataObj, $log['crea']);
+        }
+      });
       // log azione
       $dblogger->logAzione('REGISTRO', 'Modifica Lezione');
       // redirezione
@@ -1041,21 +1045,26 @@ class RegistroController extends BaseController
         }
       }
     }
-    // cancella assenti da lezione
-    foreach (array_filter($log['cancella'], fn($o) => ($o instanceOf Lezione)) as $lezione) {
-      $this->em->getRepository(AssenzaLezione::class)->createQueryBuilder('al')
-        ->delete()
-        ->where('al.lezione=:lezione')
-        ->setParameter('lezione', $lezione->getId())
-        ->getQuery()
-        ->execute();
-    }
-    // ok: memorizza dati
-    $this->em->flush();
-    if (!empty($assenti)) {
-      // ricalcola assenze di lezione
-      $reg->ricalcolaOreLezione($dataObj, $lezioneDocente);
-    }
+    // cancella le ore assenza, memorizza e ricalcola atomicamente: le DQL delete scrivono
+    // subito, quindi senza transazione un fallimento lascerebbe dati incoerenti
+    // ($assenti è definito solo in alcuni rami: lo si risolve qui prima della closure)
+    $ricalcola = !empty($assenti);
+    $this->em->wrapInTransaction(function () use ($reg, $dataObj, $log, $ricalcola, $lezioneDocente): void {
+      // cancella assenti da lezione
+      foreach (array_filter($log['cancella'], fn($o) => ($o instanceOf Lezione)) as $lezione) {
+        $this->em->getRepository(AssenzaLezione::class)->createQueryBuilder('al')
+          ->delete()
+          ->where('al.lezione=:lezione')
+          ->setParameter('lezione', $lezione->getId())
+          ->getQuery()
+          ->execute();
+      }
+      $this->em->flush();
+      if ($ricalcola) {
+        // ricalcola assenze di lezione
+        $reg->ricalcolaOreLezione($dataObj, $lezioneDocente);
+      }
+    });
     // log azione
     $dblogger->logAzione('REGISTRO', 'Cancella Lezione');
     // redirezione

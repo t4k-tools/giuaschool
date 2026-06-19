@@ -3,6 +3,12 @@
 {% block pagina_contenuto %}
 <div class="container">
   <h1 class="text-center mb-4">{{ titolo|trans({anno: info.nuovoAnno~'/'~(info.nuovoAnno + 1)}) }}</h1>
+  {% if info.step == 0 %}
+  <div class="alert alert-warning">
+    <strong>{{ 'message.nuovo_anno_backup'|trans }}</strong><br>
+    <code>{{ info.backupCmd }}</code>
+  </div>
+  {% endif %}
   {{ include('tema-new/include/form.html.twig', {form: form[0], form_help: form[1]}) }}
 </div>
 {% endblock %}

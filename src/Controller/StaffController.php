@@ -340,9 +340,11 @@ class StaffController extends BaseController {
           }
         }
         // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenze
-        $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        // memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $data_obj, $alunno): void {
+          $this->em->flush();
+          $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        });
         // log azione
         if (isset($entrata_old) && $mode == 'DELETE') {
           // log cancella
@@ -515,10 +517,11 @@ class StaffController extends BaseController {
             ->setGiustificato(new DateTime('today'))
             ->setDocenteGiustifica($this->getUser());
         }
-        // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenze
-        $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        // memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $data_obj, $alunno): void {
+          $this->em->flush();
+          $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        });
         // log azione
         if (isset($uscita_old) && $mode == 'DELETE') {
           // cancella
@@ -1223,12 +1226,13 @@ class StaffController extends BaseController {
               $this->em->remove($assenza);
             }
           }
-          // ok: memorizza dati
-          $this->em->flush();
-          // ricalcola ore assenze
-          foreach (array_merge($nuovi_assenti, $cancella_assenti) as $alu) {
-            $reg->ricalcolaOreAlunno($data_obj, $alu);
-          }
+          // memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+          $this->em->wrapInTransaction(function () use ($reg, $data_obj, $nuovi_assenti, $cancella_assenti): void {
+            $this->em->flush();
+            foreach (array_merge($nuovi_assenti, $cancella_assenti) as $alu) {
+              $reg->ricalcolaOreAlunno($data_obj, $alu);
+            }
+          });
           // log azione
           $dblogger->logAzione('ASSENZE', 'Gestione assenti');
         }

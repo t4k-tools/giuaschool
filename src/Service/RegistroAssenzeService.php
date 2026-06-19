@@ -153,11 +153,14 @@ class RegistroAssenzeService
             }
         }
 
-        $this->em->flush();
+        // persist the appello and recalculate every affected student atomically (see RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($alunniRicalcolo, $dataObj): void {
+            $this->em->flush();
 
-        foreach ($alunniRicalcolo as $alunno) {
-            $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
-        }
+            foreach ($alunniRicalcolo as $alunno) {
+                $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+            }
+        });
 
         $this->logHandler->logAzione('ASSENZE', 'Appello API');
 
@@ -211,8 +214,11 @@ class RegistroAssenzeService
             $message = 'Assenza registrata.';
         }
 
-        $this->em->flush();
-        $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        // persist and recalculate the student's absence hours atomically (see RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($dataObj, $alunno): void {
+            $this->em->flush();
+            $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        });
         $this->logHandler->logAzione('ASSENZE', $action);
 
         return [
@@ -286,8 +292,11 @@ class RegistroAssenzeService
             $this->em->remove($assenza);
         }
 
-        $this->em->flush();
-        $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        // persist and recalculate the student's absence hours atomically (see RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($dataObj, $alunno): void {
+            $this->em->flush();
+            $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        });
         $this->logHandler->logAzione('ASSENZE', $isNew ? 'Crea entrata API' : 'Modifica entrata API');
 
         return [
@@ -316,8 +325,11 @@ class RegistroAssenzeService
         }
 
         $this->em->remove($entrata);
-        $this->em->flush();
-        $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        // persist and recalculate the student's absence hours atomically (see RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($dataObj, $alunno): void {
+            $this->em->flush();
+            $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        });
         $this->logHandler->logAzione('ASSENZE', 'Cancella entrata API');
 
         return [
@@ -378,8 +390,11 @@ class RegistroAssenzeService
             $this->em->remove($assenza);
         }
 
-        $this->em->flush();
-        $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        // persist and recalculate the student's absence hours atomically (see RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($dataObj, $alunno): void {
+            $this->em->flush();
+            $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        });
         $this->logHandler->logAzione('ASSENZE', $isNew ? 'Crea uscita API' : 'Modifica uscita API');
 
         return [
@@ -408,8 +423,11 @@ class RegistroAssenzeService
         }
 
         $this->em->remove($uscita);
-        $this->em->flush();
-        $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        // persist and recalculate the student's absence hours atomically (see RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($dataObj, $alunno): void {
+            $this->em->flush();
+            $this->registroUtil->ricalcolaOreAlunno($dataObj, $alunno);
+        });
         $this->logHandler->logAzione('ASSENZE', 'Cancella uscita API');
 
         return [

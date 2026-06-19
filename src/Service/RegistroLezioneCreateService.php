@@ -12,6 +12,7 @@ use App\Entity\Materia;
 use App\Entity\ModuloFormativo;
 use App\Entity\AssenzaLezione;
 use App\Entity\Valutazione;
+use App\Util\HtmlSanitizer;
 use App\Util\LogHandler;
 use App\Util\RegistroUtil;
 use DateTime;
@@ -134,6 +135,9 @@ class RegistroLezioneCreateService
         ?int $materiaId = null,
         ?string $tipoSostituzione = null,
     ): array {
+        // sanifica il testo libero: rimuove l'HTML e rende sicuri i link (reso poi con |raw)
+        $argomento = HtmlSanitizer::sanitizeMessage($argomento);
+        $attivita = HtmlSanitizer::sanitizeMessage($attivita);
         [$cattedra, $classe, $materia] = $this->resolveContext($docente, $cattedraId, $classeId);
         $dataObj = DateTime::createFromFormat('Y-m-d', $data) ?: new DateTime();
 
@@ -265,17 +269,22 @@ class RegistroLezioneCreateService
             $this->em->persist($firma);
         }
 
-        $this->em->flush();
+        // persist the lesson(s)/firma and recalculate the absence hours atomically: a failure
+        // in the recalculation must roll back the lesson too, otherwise a retry would double
+        // the gs_assenza_lezione rows (ricalcolaOreLezione only inserts, it is not idempotent)
+        $this->em->wrapInTransaction(function () use ($createdLessons, $trasformazione, $dataObj): void {
+            $this->em->flush();
 
-        foreach ($createdLessons as $lezione) {
-            $this->registroUtil->ricalcolaOreLezione($dataObj, $lezione);
-        }
-
-        if (!empty($trasformazione['assenze'])) {
-            foreach ($trasformazione['assenze'] as $lezioneAssenze) {
-                $this->registroUtil->ricalcolaOreLezione($dataObj, $lezioneAssenze);
+            foreach ($createdLessons as $lezione) {
+                $this->registroUtil->ricalcolaOreLezione($dataObj, $lezione);
             }
-        }
+
+            if (!empty($trasformazione['assenze'])) {
+                foreach ($trasformazione['assenze'] as $lezioneAssenze) {
+                    $this->registroUtil->ricalcolaOreLezione($dataObj, $lezioneAssenze);
+                }
+            }
+        });
 
         $this->logHandler->logAzione('REGISTRO', 'Crea lezione API');
 
@@ -339,6 +348,9 @@ class RegistroLezioneCreateService
         string $attivita,
         ?int $moduloFormativoId = null,
     ): array {
+        // sanifica il testo libero: rimuove l'HTML e rende sicuri i link (reso poi con |raw)
+        $argomento = HtmlSanitizer::sanitizeMessage($argomento);
+        $attivita = HtmlSanitizer::sanitizeMessage($attivita);
         $state = $this->resolveOwnedLessonState($docente, $cattedraId, $classeId, $data, $ora, 'edit');
         $firmaDocente = $state['firmaDocente'];
         $lezioneDocente = $state['lezioneDocente'];
@@ -521,20 +533,25 @@ class RegistroLezioneCreateService
             }
         }
 
-        if (count($deleteAssenzeLessonIds) > 0) {
-            $this->em->getRepository(AssenzaLezione::class)->createQueryBuilder('al')
-                ->delete()
-                ->where('al.lezione IN (:lezioni)')
-                ->setParameter('lezioni', array_values(array_unique($deleteAssenzeLessonIds)))
-                ->getQuery()
-                ->execute();
-        }
+        // delete the orphaned absence-hour rows, persist the changes and recalculate
+        // atomically: the DQL delete writes immediately, so without the transaction a later
+        // failure would leave those rows gone and the recalculation half-done
+        $this->em->wrapInTransaction(function () use ($deleteAssenzeLessonIds, $recalculateLesson, $data): void {
+            if (count($deleteAssenzeLessonIds) > 0) {
+                $this->em->getRepository(AssenzaLezione::class)->createQueryBuilder('al')
+                    ->delete()
+                    ->where('al.lezione IN (:lezioni)')
+                    ->setParameter('lezioni', array_values(array_unique($deleteAssenzeLessonIds)))
+                    ->getQuery()
+                    ->execute();
+            }
 
-        $this->em->flush();
+            $this->em->flush();
 
-        if ($recalculateLesson) {
-            $this->registroUtil->ricalcolaOreLezione(DateTime::createFromFormat('Y-m-d', $data) ?: new DateTime(), $recalculateLesson);
-        }
+            if ($recalculateLesson) {
+                $this->registroUtil->ricalcolaOreLezione(DateTime::createFromFormat('Y-m-d', $data) ?: new DateTime(), $recalculateLesson);
+            }
+        });
         $this->logHandler->logAzione('REGISTRO', 'Cancella lezione API');
 
         return [

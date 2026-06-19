@@ -13,6 +13,7 @@ use App\Entity\Docente;
 use App\Entity\Genitore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ButtonType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -43,6 +44,14 @@ class ModuloType extends AbstractType {
       // form nuovo anno
       $builder
         ->setAction($options['action_url']);
+      if ($options['values'][0] == 0) {
+        // explicit backup confirmation is required before starting the procedure;
+        // the controller checks this value again server-side on the first step
+        $builder
+          ->add('backup', CheckboxType::class, ['label' => 'label.backup_eseguito',
+            'required' => true,
+            'mapped' => false]);
+      }
       if ($options['values'][0] <= 7) {
         $builder
           ->add('submit', SubmitType::class, ['label' => $options['values'][0] == 0 ? 'label.start' : 'label.next']);

@@ -333,10 +333,11 @@ class AssenzeController extends BaseController {
       // errore: azione non permessa
       throw $this->createNotFoundException('exception.not_allowed');
     }
-    // ok: memorizza dati
-    $this->em->flush();
-    // ricalcola ore assenza
-    $reg->ricalcolaOreAlunno($data_obj, $alunno);
+    // ok: memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+    $this->em->wrapInTransaction(function () use ($reg, $data_obj, $alunno): void {
+      $this->em->flush();
+      $reg->ricalcolaOreAlunno($data_obj, $alunno);
+    });
     // log azione
     if ($id) {
       // log cancella assenza
@@ -503,10 +504,11 @@ class AssenzeController extends BaseController {
             $this->em->remove($assenza);
           }
         }
-        // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenze
-        $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        // ok: memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $data_obj, $alunno): void {
+          $this->em->flush();
+          $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        });
         // log azione
         if (isset($entrata_old) && $mode == 'DELETE') {
           // log cancella
@@ -670,10 +672,11 @@ class AssenzeController extends BaseController {
             $this->em->remove($assenza);
           }
         }
-        // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenze
-        $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        // ok: memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $data_obj, $alunno): void {
+          $this->em->flush();
+          $reg->ricalcolaOreAlunno($data_obj, $alunno);
+        });
         // log azione
         if (isset($uscita_old) && $mode == 'DELETE') {
           // cancella
@@ -1066,12 +1069,13 @@ class AssenzeController extends BaseController {
         }
       }
       if ($form->isValid()) {
-        // ok: memorizza dati
-        $this->em->flush();
-        // ricalcola ore assenze
-        foreach ($alunni_assenza as $alu) {
-          $reg->ricalcolaOreAlunno($data_obj, $alu);
-        }
+        // ok: memorizza dati e ricalcola le ore di assenza atomicamente (vedi RegistroUtil)
+        $this->em->wrapInTransaction(function () use ($reg, $data_obj, $alunni_assenza): void {
+          $this->em->flush();
+          foreach ($alunni_assenza as $alu) {
+            $reg->ricalcolaOreAlunno($data_obj, $alu);
+          }
+        });
         // log azione
         $dblogger->logAzione('ASSENZE', 'Appello');
         // redirezione

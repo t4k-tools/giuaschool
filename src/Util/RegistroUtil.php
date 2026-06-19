@@ -1753,6 +1753,7 @@ class RegistroUtil {
    */
   public function ricalcolaOreAlunno(DateTime $data, Alunno $alunno) {
     $this->em->getConnection()->beginTransaction();
+    try {
     // lezioni del giorno
     $lezioni = $this->em->getRepository(Lezione::class)->createQueryBuilder('l')
       ->select('l.id,s.ora,s.inizio,s.fine,s.durata')
@@ -1824,7 +1825,13 @@ class RegistroUtil {
         }
       }
     }
-    $this->em->getConnection()->commit();
+      $this->em->getConnection()->commit();
+    } catch (\Throwable $e) {
+      // roll back so a partial recalculation (rows deleted but not reinserted) is never
+      // committed and the connection is not left with an open transaction
+      $this->em->getConnection()->rollBack();
+      throw $e;
+    }
   }
 
   /**
@@ -1835,6 +1842,7 @@ class RegistroUtil {
    */
   public function ricalcolaOreLezione(DateTime $data, Lezione $lezione) {
     $this->em->getConnection()->beginTransaction();
+    try {
     // orario lezione
     $ora = $this->em->getRepository(ScansioneOraria::class)->createQueryBuilder('s')
       ->select('s.inizio,s.fine,s.durata')
@@ -1909,7 +1917,12 @@ class RegistroUtil {
         }
       }
     }
-    $this->em->getConnection()->commit();
+      $this->em->getConnection()->commit();
+    } catch (\Throwable $e) {
+      // roll back so the connection is not left with an open transaction on failure
+      $this->em->getConnection()->rollBack();
+      throw $e;
+    }
   }
 
   /**
@@ -3281,15 +3294,42 @@ class RegistroUtil {
     $controllo['U:R:S']['S:N'] = 'sostegnoNA';
     $controllo['U:R:A']['S:N'] = 'sostegnoNA';
     $controllo['U:R:N']['S:N'] = 'sostegnoNA';
-    // lezione firmata in altra classe
-    $altre = $this->em->getRepository(Lezione::class)->createQueryBuilder('l')
-      ->join(Firma::class, 'f', 'WITH', 'l.id=f.lezione')
-      ->where('l.data=:data AND l.ora=:ora AND f.docente=:docente')
-			->setParameter('data', $data->format('Y-m-d'))
-			->setParameter('ora', $ora)
-			->setParameter('docente', $docente)
+    // fascia oraria reale della lezione da firmare: dipende da sede/orario della classe,
+    // così la 1ª ora del diurno (es. 08:00) e la 1ª ora del serale (es. 14:30) non coincidono
+    $giorno = $data->format('w');
+    $fascia = $this->em->getRepository(ScansioneOraria::class)->createQueryBuilder('s')
+      ->select('s.inizio AS inizio,s.fine AS fine')
+      ->join('s.orario', 'o')
+      ->where(':data BETWEEN o.inizio AND o.fine AND o.sede=:sede AND s.giorno=:giorno AND s.ora=:ora')
+      ->setParameter('data', $data->format('Y-m-d'))
+      ->setParameter('sede', $classe->getSede())
+      ->setParameter('giorno', $giorno)
+      ->setParameter('ora', $ora)
+      ->setMaxResults(1)
       ->getQuery()
-      ->getResult();
+      ->getOneOrNullResult();
+    // lezioni del docente firmate in altra classe che si sovrappongono nella stessa fascia
+    // oraria reale (non solo nello stesso numero d'ora)
+    $queryAltre = $this->em->getRepository(Lezione::class)->createQueryBuilder('l')
+      ->join(Firma::class, 'f', 'WITH', 'l.id=f.lezione')
+      ->where('l.data=:data AND f.docente=:docente')
+      ->setParameter('data', $data->format('Y-m-d'))
+      ->setParameter('docente', $docente);
+    if ($fascia) {
+      // confronto per sovrapposizione dell'orario reale (inizio/fine della scansione)
+      $queryAltre
+        ->join('l.classe', 'cl')
+        ->join(ScansioneOraria::class, 's', 'WITH', 's.ora=l.ora AND s.giorno=:giorno')
+        ->join('s.orario', 'o', 'WITH', 'o.sede=cl.sede AND :data BETWEEN o.inizio AND o.fine')
+        ->andWhere('s.inizio < :fine AND s.fine > :inizio')
+        ->setParameter('giorno', $giorno)
+        ->setParameter('inizio', $fascia['inizio']->format('H:i:s'))
+        ->setParameter('fine', $fascia['fine']->format('H:i:s'));
+    } else {
+      // orario non definito: ripiega sul confronto per numero d'ora (comportamento storico)
+      $queryAltre->andWhere('l.ora=:ora')->setParameter('ora', $ora);
+    }
+    $altre = $queryAltre->getQuery()->getResult();
     // controlla sovrapposizione
     $sostituzioneMultipla = true;
     $sostituzioneNA = true;

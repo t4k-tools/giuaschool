@@ -1027,11 +1027,15 @@ class ScuolaController extends BaseController {
       foreach ($form->get('campi')->getData() as $campo) {
         $listaCampi[$campo['nome_campo']] = [$campo['tipo_campo'], $campo['campo_obbligatorio']];
         if (empty($campo['nome_campo'])) {
-          // errore: nome campo duplicato
+          // errore: nome campo mancante
           $form->addError(new FormError($trans->trans('exception.modulo_campo_senza_nome')));
         } elseif ($campo['nome_campo'] == 'data') {
           // errore: nome campo riservato
           $form->addError(new FormError($trans->trans('exception.modulo_campo_nome_riservato')));
+        } elseif (!preg_match('/^[A-Za-z0-9_]+$/', (string) $campo['nome_campo'])) {
+          // il nome del campo viene interpolato nel template Twig del modulo: ammette solo
+          // lettere, cifre e underscore (niente metacaratteri che permetterebbero injection)
+          $form->addError(new FormError($trans->trans('exception.modulo_campo_nome_invalido')));
         }
         if (empty($campo['tipo_campo'])) {
           // errore: nome campo duplicato

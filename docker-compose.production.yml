@@ -87,6 +87,9 @@ services:
       JWT_PUBLIC_KEY: /var/www/html/config/jwt/public.pem
       JWT_PASSPHRASE: ${JWT_PASSPHRASE}
       TRUSTED_PROXIES: REMOTE_ADDR
+      # URL del frontend Next.js: usato dal login Google per il redirect post-auth
+      # (senza questo vale il default localhost:3000 e il login in prod si rompe)
+      NEXTJS_URL: https://${DOMAIN}
     volumes:
       - jwt_keys:/var/www/html/config/jwt
       - symfony_files:/var/www/html/FILES

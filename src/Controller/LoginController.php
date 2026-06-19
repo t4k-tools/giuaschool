@@ -17,6 +17,7 @@ use App\Entity\Amministratore;
 use App\Entity\Ata;
 use App\Entity\Docente;
 use App\Entity\Genitore;
+use App\Service\RecuperoPasswordService;
 use App\Util\ConfigLoader;
 use App\Util\LogHandler;
 use App\Util\NotificheUtil;
@@ -148,8 +149,7 @@ class LoginController extends BaseController {
    */
   #[Route(path: '/login/recovery/', name: 'login_recovery', methods: ['GET', 'POST'])]
   public function recovery(Request $request, ConfigLoader $config,
-                           UserPasswordHasherInterface $hasher, StaffUtil $staff,
-                           MailerInterface $mailer, LoggerInterface $logger): Response {
+                           RecuperoPasswordService $recupero): Response {
     // carica configurazione di sistema
     $config->carica();
     // modalità manutenzione
@@ -170,104 +170,11 @@ class LoginController extends BaseController {
       ->getForm();
     $form->handleRequest($request);
     if ($form->isSubmitted() && $form->isValid()) {
-      $email = $form->get('email')->getData();
-      $utente = $this->em->getRepository(Utente::class)->findOneBy(['email' => $email, 'abilitato' => 1]);
-      // legge configurazione: id_provider
-      $idProvider = $this->reqstack->getSession()->get('/CONFIG/ACCESSO/id_provider', '');
-      $idProviderTipo = $this->reqstack->getSession()->get('/CONFIG/ACCESSO/id_provider_tipo', '');
-      if (!$utente) {
-        // utente non esiste
-        $logger->error('Email non valida o utente disabilitato nella richiesta di recupero password.', [
-          'email' => $email,
-          'ip' => $request->getClientIp()]);
-        $errore = 'exception.invalid_recovery_email';
-      } elseif ($idProvider && $utente->controllaRuolo($idProviderTipo)) {
-        // errore: niente recupero password per utente su id provider
-        $logger->error('Tipo di utente non valido nella richiesta di recupero password.', [
-          'email' => $email,
-          'ip' => $request->getClientIp()]);
-        $errore = 'exception.invalid_user_type_recovery';
-      } else {
-        // effettua il recupero password
-        if ($utente instanceOf Amministratore) {
-          // amministratore
-          $num_pwdchars = 12;
-          $template_html = 'email/credenziali_recupero_ata.html.twig';
-          $template_txt = 'email/credenziali_recupero_ata.txt.twig';
-          $utente_mail = $utente;
-          $sesso = ($utente->getSesso() == 'M' ? 'o' : 'a');
-        } elseif ($utente instanceOf Docente) {
-          // docenti/staff/preside
-          $num_pwdchars = 10;
-          $template_html = 'email/credenziali_recupero_docenti.html.twig';
-          $template_txt = 'email/credenziali_recupero_docenti.txt.twig';
-          $utente_mail = $utente;
-          $sesso = ($utente->getSesso() == 'M' ? 'Prof.' : 'Prof.ssa');
-        } elseif ($utente instanceOf Ata) {
-          // ATA
-          $num_pwdchars = 8;
-          $template_html = 'email/credenziali_recupero_ata.html.twig';
-          $template_txt = 'email/credenziali_recupero_ata.txt.twig';
-          $utente_mail = $utente;
-          $sesso = ($utente->getSesso() == 'M' ? 'o' : 'a');
-        } elseif ($utente instanceOf Genitore) {
-          // genitori
-          $num_pwdchars = 8;
-          $template_html = 'email/credenziali_alunni.html.twig';
-          $template_txt = 'email/credenziali_alunni.txt.twig';
-          $utente_mail = $utente->getAlunno();
-          $sesso = ($utente->getAlunno()->getSesso() == 'M' ? 'o' : 'a');
-        } elseif ($utente instanceOf Alunno) {
-          // alunni
-          $num_pwdchars = 8;
-          $template_html = 'email/credenziali_alunni.html.twig';
-          $template_txt = 'email/credenziali_alunni.txt.twig';
-          $utente_mail = $utente;
-          $sesso = ($utente->getSesso() == 'M' ? 'o' : 'a');
-        }
-        // ok: genera password
-        $password = $staff->creaPassword($num_pwdchars);
-        $utente->setPasswordNonCifrata($password);
-        $pswd = $hasher->hashPassword($utente, $utente->getPasswordNonCifrata());
-        $utente->setPassword($pswd);
-        // memorizza su db
-        $this->em->flush();
-        // log azione
-        $logger->warning('Richiesta di recupero Password', [
-          'Username' => $utente->getUsername(),
-          'Email' => $email,
-          'Ruolo' => $utente->getRoles()[0]]);
-        // crea messaggio
-        $message = (new Email())
-          ->from(new Address($this->reqstack->getSession()->get('/CONFIG/ISTITUTO/email_notifiche'), $this->reqstack->getSession()->get('/CONFIG/ISTITUTO/intestazione_breve')))
-          ->to($email)
-          ->subject($this->reqstack->getSession()->get('/CONFIG/ISTITUTO/intestazione_breve')." - Recupero credenziali del Registro Elettronico")
-          ->text($this->renderView($template_txt, [
-            'ruolo' => ($utente instanceOf Genitore) ? 'GENITORE' : (($utente instanceOf Alunno) ? 'ALUNNO' : ''),
-            'utente' => $utente_mail,
-            'username' => $utente->getUsername(),
-            'password' => $password,
-            'sesso' => $sesso]))
-          ->html($this->renderView($template_html, [
-            'ruolo' => ($utente instanceOf Genitore) ? 'GENITORE' : (($utente instanceOf Alunno) ? 'ALUNNO' : ''),
-            'utente' => $utente_mail,
-            'username' => $utente->getUsername(),
-            'password' => $password,
-            'sesso' => $sesso]));
-        try {
-          // invia email
-          $mailer->send($message);
-          $successo = 'message.recovery_ok';
-        } catch (Exception $err) {
-          // errore di spedizione
-          $logger->error('Errore di spedizione email nella richiesta di recupero password.', [
-            'username' => $utente->getUsername(),
-            'email' => $email,
-            'ip' => $request->getClientIp(),
-            'errore' => $err->getMessage()]);
-          $errore = 'exception.error_recovery';
-        }
-      }
+      // genera un token monouso e invia il link di conferma; la password NON viene cambiata
+      // finché l'utente non conferma dal link ricevuto via email (evita lock-out di terzi)
+      $recupero->richiedi($form->get('email')->getData());
+      // risposta sempre generica (nessuna enumeration degli indirizzi registrati)
+      $successo = 'message.recovery_link_ok';
     }
     // mostra la pagina di risposta
     return $this->render('login/recovery.html.twig', [
@@ -276,6 +183,49 @@ class LoginController extends BaseController {
       'errore' => $errore,
       'successo' => $successo,
       'manutenzione' => $manutenzione]);
+  }
+
+  /**
+   * Conferma del recupero password tramite il token ricevuto via email.
+   * La password viene reimpostata solo con una conferma esplicita dell'utente (POST),
+   * così l'apertura automatica del link da parte degli scanner email non resetta nulla.
+   *
+   * @param Request $request Pagina richiesta
+   * @param ConfigLoader $config Gestore della configurazione su file
+   * @param RecuperoPasswordService $recupero Gestore del recupero password
+   * @param string $token Token di recupero ricevuto via email
+   *
+   * @return Response Pagina di risposta
+   *
+   */
+  #[Route(path: '/login/recovery/{token}', name: 'login_recovery_confirm', requirements: ['token' => '[a-f0-9]{32}'], methods: ['GET', 'POST'])]
+  public function recoveryConfirm(Request $request, ConfigLoader $config,
+                                  RecuperoPasswordService $recupero, string $token): Response {
+    // carica configurazione di sistema (serve ai template delle credenziali)
+    $config->carica();
+    $errore = null;
+    $successo = null;
+    // form con il solo pulsante di conferma (protetto da CSRF)
+    $form = $this->container->get('form.factory')->createNamedBuilder('recovery_confirm', FormType::class)
+      ->add('submit', SubmitType::class, ['label' => 'label.submit', 'attr' => ['class' => 'btn-primary']])
+      ->getForm();
+    $form->handleRequest($request);
+    if ($form->isSubmitted() && $form->isValid()) {
+      // conferma esplicita: reimposta la password e invia le nuove credenziali via email
+      $utente = $recupero->conferma($token);
+      $errore = $utente ? null : 'exception.recovery_token_invalid';
+      $successo = $utente ? 'message.recovery_confirm_ok' : null;
+    } elseif (!$recupero->utenteDaToken($token)) {
+      // token mancante, già usato o scaduto
+      $errore = 'exception.recovery_token_invalid';
+    }
+    // mostra la pagina di conferma
+    return $this->render('login/recovery_confirm.html.twig', [
+      'pagina_titolo' => 'page.recovery',
+      'form' => $form->createView(),
+      'errore' => $errore,
+      'successo' => $successo,
+      'mostraConferma' => ($errore === null && $successo === null)]);
   }
 
   /**

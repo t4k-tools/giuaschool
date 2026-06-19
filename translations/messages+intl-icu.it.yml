@@ -1174,6 +1174,8 @@ message.nessun_dato: Non sono presenti dati da visualizzare
 message.osservazioni_sostituzione: Non è possibile inserire osservazioni per una sostituzione.
 message.cancella_osservazione: Verrà cancellata l'osservazione inserita. Vuoi continuare?
 message.recovery_ok: Procedura eseguita senza errori. Tra qualche minuto riceverai, all'indirizzo indicato, un'email con le nuove credenziali di accesso al Registro Elettronico.
+message.recovery_link_ok: Se l'indirizzo indicato è registrato, riceverai a breve un'email con un link per reimpostare la password. La password attuale resta valida finché non confermi dal link.
+message.recovery_confirm_ok: Password reimpostata. Tra qualche minuto riceverai un'email con le nuove credenziali di accesso al Registro Elettronico.
 message.no_proposte: Non è ancora possibile inserire le proposte di voto
 message.proposte: Inserisci la proposta di voto, indicando anche la modalità e gli argomenti del recupero nel caso di insufficienza.
 message.proposte_sospesi: Inserisci la proposta di voto, sulla base dell'esito della verifica del recupero del debito formativo.
@@ -1588,6 +1590,7 @@ exception.invalid_csrf: Pagina scaduta. Reinserisci le credenziali di accesso.
 exception.invalid_data: I dati dell'utente non corrispondono a quelli presenti nel sistema.
 exception.invalid_params: Dati errati.
 exception.invalid_recovery_email: L'indirizzo email indicato non è presente nel sistema.
+exception.recovery_token_invalid: Il link di recupero non è valido, è già stato usato oppure è scaduto. Richiedi nuovamente il recupero della password.
 exception.invalid_recovery_type: Utente non abilitato all'utilizzo della procedura di recupero password.
 exception.invalid_user_type: Tipo di utente non valido.
 exception.invalid_user_type_form: "Tipo di utente non valido: usare l'autenticazione tramite GOOGLE."

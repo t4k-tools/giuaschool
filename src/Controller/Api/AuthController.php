@@ -2,20 +2,15 @@
 
 namespace App\Controller\Api;
 
-use App\Entity\Istituto;
 use App\Entity\Log;
 use App\Entity\Utente;
-use App\Util\StaffUtil;
+use App\Service\RecuperoPasswordService;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Mailer\MailerInterface;
-use Symfony\Component\Mime\Address;
-use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -28,8 +23,7 @@ class AuthController extends AbstractController {
     private EntityManagerInterface $em,
     private JWTTokenManagerInterface $jwtManager,
     private UserPasswordHasherInterface $hasher,
-    private StaffUtil $staffUtil,
-    private MailerInterface $mailer,
+    private RecuperoPasswordService $recupero,
   ) {}
 
   #[Route(path: '/auth/login', name: 'api_auth_login', methods: ['POST'])]
@@ -101,42 +95,12 @@ class AuthController extends AbstractController {
       return $this->json(['error' => 'Indirizzo email non valido.'], 400);
     }
 
-    $utente = $this->em->getRepository(Utente::class)->findOneBy(['email' => $email, 'abilitato' => 1]);
-    $genericOk = ['message' => 'Se l\'indirizzo è registrato, riceverai un\'email con le nuove credenziali.'];
+    // genera un token monouso e invia il link di conferma; la password NON viene cambiata
+    // finché l'utente non conferma dal link ricevuto via email (evita lock-out di terzi)
+    $this->recupero->richiedi($email);
 
-    if (!$utente) {
-      return $this->json($genericOk);
-    }
-
-    $password = $this->staffUtil->creaPassword(10);
-    $utente->setPasswordNonCifrata($password);
-    $utente->setPassword($this->hasher->hashPassword($utente, $password));
-    $this->em->flush();
-
-    $istituto = $this->em->getRepository(Istituto::class)->findOneBy([]);
-    $fromEmail = $istituto?->getEmailNotifiche() ?: 'noreply@registro.local';
-    $fromName = $istituto?->getIntestazioneBreve() ?: 'Registro Elettronico';
-
-    $message = (new Email())
-      ->from(new Address($fromEmail, $fromName))
-      ->to($email)
-      ->subject($fromName . ' - Recupero credenziali')
-      ->text(
-        "Gentile utente,\n\n" .
-        "A seguito della tua richiesta le credenziali di accesso al Registro Elettronico sono state aggiornate:\n\n" .
-        "Username: " . $utente->getUsername() . "\n" .
-        "Password: " . $password . "\n\n" .
-        "Ti invitiamo a modificare la password al primo accesso.\n\n" .
-        "-- " . $fromName
-      );
-
-    try {
-      $this->mailer->send($message);
-    } catch (\Exception) {
-      // Log silently; user still gets generic success
-    }
-
-    return $this->json($genericOk);
+    // risposta sempre generica (nessuna enumeration degli indirizzi registrati)
+    return $this->json(['message' => 'Se l\'indirizzo è registrato, riceverai un\'email con le istruzioni per reimpostare la password.']);
   }
 
   private function serializeUser(Utente $user): array {
